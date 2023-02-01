@@ -12,8 +12,7 @@ if (NOT MSVC)
 	check_symbol_exists(ftello "stdio.h" HAVE_FTELLO)
 	check_symbol_exists(fseeko "stdio.h" HAVE_FSEEKO)
 	check_include_file("endian.h" HAVE_ENDIAN_H)
-else()
-	string(REPLACE "/W3" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+	check_include_file("arm/endian.h" HAVE_ARM_ENDIAN_H)
 endif()
 
 set(SOURCES
@@ -30,10 +29,12 @@ add_executable(${NAME} ${SOURCES})
 target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_FTELLO}>:HAVE_FTELLO>
 	$<$<BOOL:${HAVE_FSEEKO}>:HAVE_FSEEKO>
-	$<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>)
+	$<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
+	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>)
 target_link_libraries(${NAME}
 	$<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
 	SDL2::SDL2
 	$<$<C_COMPILER_ID:Clang,GNU>:m>)
 target_compile_options(${NAME} PRIVATE
-	$<$<C_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -pedantic -Wno-unused-parameter>)
+	$<$<C_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -pedantic -Wno-unused-parameter>
+	$<$<C_COMPILER_ID:MSVC>:/W4>)

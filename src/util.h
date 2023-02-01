@@ -1,7 +1,9 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#ifdef HAVE_ENDIAN_H
+#ifdef HAVE_ARM_ENDIAN_H
+  #include <arm/endian.h>
+#elif defined(HAVE_ENDIAN_H)
   #include <endian.h>
   #define BYTE_ORDER    __BYTE_ORDER
   #define LITTLE_ENDIAN __LITTLE_ENDIAN
