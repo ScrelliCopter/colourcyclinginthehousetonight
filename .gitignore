@@ -13,8 +13,13 @@ srcjson/
 audio/
 
 .idea/
+.vs/
 cmake-build-*/
 build/
+
+*.dll
+*.so
+*.dylib
 
 .DS_Store
 Thumbs.db
