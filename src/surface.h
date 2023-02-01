@@ -51,4 +51,9 @@ typedef struct SDL_Texture SDL_Texture;
 
 void surfaceUpdate(Surface* surf, SDL_Texture* tex);
 
+typedef struct SDL_Renderer SDL_Renderer;
+#include <SDL_rect.h>
+
+void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* rect);
+
 #endif //SURFACE_H

@@ -336,20 +336,10 @@ void surfaceCombine(Surface* surf)
 	}
 }
 
-//#define HIGHLIGHT_SPANS
-//#define UNLIGHT_SPANS
-//#define SPAN_STATIC
-
 void surfaceCombinePartial(Surface* surf)
 {
 	if (!surf || !surf->spans || surf->spanBeg < 0)
 		return;
-
-#if defined(HIGHLIGHT_SPANS) || defined(UNLIGHT_SPANS)
-	surfaceCombine(surf);
-#elif defined(SPAN_STATIC)
-	memset(surf->comb, 0, surf->w * surf->h * sizeof(Colour));
-#endif
 
 	const uint8_t* srcPix = surf->srcPix + surf->spanBeg * surf->w;
 	Colour* dst = surf->comb + surf->spanBeg * surf->w;
@@ -363,47 +353,14 @@ void surfaceCombinePartial(Surface* surf)
 			if (span.inL < 0)
 			{
 				for (int j = span.l; j <= span.r; ++j)
-#ifdef HIGHLIGHT_SPANS
-					dst[j] = surf->pal[srcPix[j]] & MAKE_RGB(0x7F, 0x7F, 0x7F) | MAKE_RGB(0x7F, 0x00, 0x00);
-#elif defined(UNLIGHT_SPANS)
-					dst[j] = MAKE_RGB(0xFF, 0x00, 0x00);
-#elif defined(SPAN_STATIC)
-					if (surf->srcPal[srcPix[j]] != surf->pal[srcPix[j]])
-						dst[j] = MAKE_RGB(0xFF, 0x7F, 0x7F);
-					else
-						dst[j] = MAKE_RGB(0x9F, 0x00, 0x00);
-#else
 					dst[j] = surf->pal[srcPix[j]];
-#endif
 			}
 			else
 			{
 				for (int j = span.l; j < span.inL; ++j)
-#ifdef HIGHLIGHT_SPANS
-					dst[j] = surf->pal[srcPix[j]] | MAKE_RGB(0x3F, 0x00, 0x7F);
-#elif defined(UNLIGHT_SPANS)
-					dst[j] = MAKE_RGB(0x00, 0xFF, 0x00);
-#elif defined(SPAN_STATIC)
-					if (surf->srcPal[srcPix[j]] != surf->pal[srcPix[j]])
-						dst[j] = MAKE_RGB(0x7F, 0x7F, 0xFF);
-					else
-						dst[j] = MAKE_RGB(0x00, 0x00, 0xBF);
-#else
 					dst[j] = surf->pal[srcPix[j]];
-#endif
 				for (int j = span.inR + 1; j <= span.r; ++j)
-#ifdef HIGHLIGHT_SPANS
-					dst[j] = surf->pal[srcPix[j]] | MAKE_RGB(0x3F, 0x7F, 0x00);
-#elif defined(UNLIGHT_SPANS)
-					dst[j] = MAKE_RGB(0x00, 0x00, 0xFF);
-#elif defined(SPAN_STATIC)
-					if (surf->srcPal[srcPix[j]] != surf->pal[srcPix[j]])
-						dst[j] = MAKE_RGB(0x7F, 0xFF, 0x7F);
-					else
-						dst[j] = MAKE_RGB(0x00, 0x7F, 0x00);
-#else
 					dst[j] = surf->pal[srcPix[j]];
-#endif
 			}
 		}
 
@@ -423,4 +380,61 @@ void surfaceUpdate(Surface* surf, SDL_Texture* tex)
 		surfaceCombine(surf);
 	int pitch = surf->w * (int)sizeof(Colour);
 	SDL_UpdateTexture(tex, NULL, surf->comb, pitch);
+}
+
+
+void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* rect)
+{
+	if (!surf || !rend)
+		return;
+
+	// Save current renderer state
+	SDL_Colour oldColour;
+	SDL_BlendMode oldMode;
+	SDL_GetRenderDrawColor(rend, &oldColour.r, &oldColour.g, &oldColour.b, &oldColour.a);
+	SDL_GetRenderDrawBlendMode(rend, &oldMode);
+
+	// Alpha blend spans over scene
+	SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
+	const Uint8 alpha = 0x3F;
+
+	// Compute scale factors
+	float sw = (float)rect->w / (float)surf->w;
+	float sh = (float)rect->h / (float)surf->h;
+
+	const SurfSpan* spans = surf->spans;
+	SDL_FRect fdst = { 0, 0, 0, sh };
+	for (int i = surf->spanBeg; i < surf->spanEnd; ++i)
+	{
+		SurfSpan span = (*spans++);
+		if (span.l < 0) // Skip empties
+			continue;
+
+		fdst.y = (float)rect->y + (float)i * sh;
+		if (span.inL < 0)
+		{
+			// Fill contiguous spans in red
+			SDL_SetRenderDrawColor(rend, 0xFF, 0x00, 0x6E, alpha);
+			fdst.x = (float)rect->x + (float)span.l * sw;
+			fdst.w = (1.0f + (float)span.r - (float)span.l) * sw;
+			SDL_RenderFillRectF(rend, &fdst);
+		}
+		else
+		{
+			// Fill split span (left portion in blue)
+			SDL_SetRenderDrawColor(rend, 0x00, 0x66, 0xFF, alpha);
+			fdst.x = (float)rect->x + (float)span.l * sw;
+			fdst.w = ((float)span.inL - (float)span.l) * sw;
+			SDL_RenderFillRectF(rend, &fdst);
+			// (Right portion in green)
+			SDL_SetRenderDrawColor(rend, 0x00, 0xFF, 0x06, alpha);
+			fdst.x = (float)rect->x + (1.0f + (float)span.inR) * sw;
+			fdst.w = ((float)span.r - (float)span.inR) * sw;
+			SDL_RenderFillRectF(rend, &fdst);
+		}
+	}
+
+	// Restore previous render state
+	SDL_SetRenderDrawColor(rend, oldColour.r, oldColour.g, oldColour.b, oldColour.a);
+	SDL_SetRenderDrawBlendMode(rend, oldMode);
 }

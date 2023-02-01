@@ -216,6 +216,7 @@ int main(int argc, char** argv)
 		audioPath = NULL;
 	}
 
+	bool spanView = false;
 	bool palView = false;
 	int method = 1;
 	int speed = 2;
@@ -235,6 +236,8 @@ int main(int argc, char** argv)
 			{
 				if (event.key.keysym.scancode == SDL_SCANCODE_P)
 					palView = !palView;
+				else if (event.key.keysym.scancode == SDL_SCANCODE_S)
+					spanView = !spanView;
 				else if (event.key.keysym.scancode == SDL_SCANCODE_M)
 				{
 					method = (method + 1) % 3;
@@ -324,6 +327,8 @@ int main(int argc, char** argv)
 		SDL_RenderClear(rend);
 		SDL_RenderCopy(rend, tex, NULL, &dstRect);
 
+		if (spanView)
+			surfaceVisualiseSpans(rend, &surf, &dstRect);
 		if (palView)
 			drawPalette(rend, surf.pal, MAX(7, (1024 + scrW + scrH) >> 8));
 
