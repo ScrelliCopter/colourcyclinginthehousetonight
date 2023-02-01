@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 import convert
 
 
-def fetch(url: str, name: str|None = None):
+def fetch(url: str, name: str|None = None) -> bool:
 	path = Path(urlparse(url).path)
 	if name is None:
 		name = path.name
@@ -27,6 +27,7 @@ def fetch(url: str, name: str|None = None):
 		with path.open("wb") as f:
 			f.write(p)
 		print(f"Fetched {url}")
+		return True
 	except URLError as e:
 		print(f"Failed to fetch \"{name}\": {e}")
 		return False
