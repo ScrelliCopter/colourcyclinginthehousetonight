@@ -1,8 +1,8 @@
 #include "surface.h"
 #include "util.h"
 #include "hsluv.h"
-#include <SDL_stdinc.h>
 #include <SDL_render.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 

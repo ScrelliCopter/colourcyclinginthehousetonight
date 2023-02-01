@@ -212,7 +212,7 @@ int main(int argc, char** argv)
 	}
 	if (audioPath)
 	{
-		free(audioPath);
+		SDL_free(audioPath);
 		audioPath = NULL;
 	}
 
@@ -339,11 +339,11 @@ int main(int argc, char** argv)
 cleanup:
 	audioClose();
 	if (audioPath)
-		free(audioPath);
+		SDL_free(audioPath);
 	if (oggv)
 		free(oggv);
 	if (title)
-		free(title);
+		SDL_free(title);
 	surfaceFree(&surf);
 	if (precompSpans)
 		free(precompSpans);
