@@ -13,13 +13,17 @@ int surfaceInit(Surface* surf,
 	if (!surf || !pix || !pal || !w || !h)
 		return -1;
 
+	surf->srcPix = malloc(w * h);
+	if (!surf->srcPix)
+		return -1;
+
 	surf->comb = malloc(w * h * sizeof(Colour));
 	if (!surf->comb)
 		return -1;
 
-	SDL_memcpy4(surf->pal, pal, 256);
-	surf->srcPix = pix;
-	surf->srcPal = pal;
+	SDL_memcpy4(surf->srcPal, pal, LBM_PAL_SIZE);
+	SDL_memcpy4(surf->pal, pal, LBM_PAL_SIZE);
+	SDL_memcpy(surf->srcPix, pix, w * h);
 	surf->w = w;
 	surf->h = h;
 	return 0;
@@ -29,18 +33,21 @@ void surfaceFree(Surface* surf)
 {
 	if (!surf)
 		return;
-
 	if (surf->spans)
 	{
 		free(surf->spans);
 		surf->spans = NULL;
 		surf->spanBufLen = 0;
 	}
-
 	if (surf->comb)
 	{
 		free(surf->comb);
 		surf->comb = NULL;
+	}
+	if (surf->srcPix)
+	{
+		free(surf->srcPix);
+		surf->srcPix = NULL;
 	}
 }
 
@@ -164,13 +171,6 @@ int surfaceComputeSpans(Surface* surf,
 {
 	if (!surf || !hi || !low || numRanges <= 0)
 		return -1;
-
-	// Does the image contain any usable ranges?
-	for (int i = 0; i < numRanges; ++i)
-		if (rate[i] && hi[i] > low[i])
-			goto hasRanges;
-	return -1;
-hasRanges:
 
 	if (resizeSpanBuffer(surf, surf->h))
 		return -1;
@@ -380,61 +380,4 @@ void surfaceUpdate(Surface* surf, SDL_Texture* tex)
 		surfaceCombine(surf);
 	int pitch = surf->w * (int)sizeof(Colour);
 	SDL_UpdateTexture(tex, NULL, surf->comb, pitch);
-}
-
-
-void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* rect)
-{
-	if (!surf || !surf->spans || !rend || !rect)
-		return;
-
-	// Save current renderer state
-	SDL_Colour oldColour;
-	SDL_BlendMode oldMode;
-	SDL_GetRenderDrawColor(rend, &oldColour.r, &oldColour.g, &oldColour.b, &oldColour.a);
-	SDL_GetRenderDrawBlendMode(rend, &oldMode);
-
-	// Alpha blend spans over scene
-	SDL_SetRenderDrawBlendMode(rend, SDL_BLENDMODE_BLEND);
-	const Uint8 alpha = 0x3F;
-
-	// Compute scale factors
-	float sw = (float)rect->w / (float)surf->w;
-	float sh = (float)rect->h / (float)surf->h;
-
-	const SurfSpan* spans = surf->spans;
-	SDL_FRect fdst = { 0, 0, 0, sh };
-	for (int i = surf->spanBeg; i <= surf->spanEnd; ++i)
-	{
-		SurfSpan span = (*spans++);
-		if (span.l < 0) // Skip empties
-			continue;
-
-		fdst.y = (float)rect->y + (float)i * sh;
-		if (span.inL < 0)
-		{
-			// Fill contiguous spans in red
-			SDL_SetRenderDrawColor(rend, 0xFF, 0x00, 0x6E, alpha);
-			fdst.x = (float)rect->x + (float)span.l * sw;
-			fdst.w = (1.0f + (float)span.r - (float)span.l) * sw;
-			SDL_RenderFillRectF(rend, &fdst);
-		}
-		else
-		{
-			// Fill split span (left portion in blue)
-			SDL_SetRenderDrawColor(rend, 0x00, 0x66, 0xFF, alpha);
-			fdst.x = (float)rect->x + (float)span.l * sw;
-			fdst.w = ((float)span.inL - (float)span.l) * sw;
-			SDL_RenderFillRectF(rend, &fdst);
-			// (Right portion in green)
-			SDL_SetRenderDrawColor(rend, 0x00, 0xFF, 0x06, alpha);
-			fdst.x = (float)rect->x + (1.0f + (float)span.inR) * sw;
-			fdst.w = ((float)span.r - (float)span.inR) * sw;
-			SDL_RenderFillRectF(rend, &fdst);
-		}
-	}
-
-	// Restore previous render state
-	SDL_SetRenderDrawColor(rend, oldColour.r, oldColour.g, oldColour.b, oldColour.a);
-	SDL_SetRenderDrawBlendMode(rend, oldMode);
 }

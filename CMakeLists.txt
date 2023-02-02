@@ -23,6 +23,7 @@ set(SOURCES
 	src/lbm.c src/lbm.h
 	src/audio.c src/audio.h
 	src/surface.c src/surface.h
+	src/display.c src/display.h
 	src/main.c)
 
 add_executable(${NAME} ${SOURCES})

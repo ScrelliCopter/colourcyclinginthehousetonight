@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+// Detect endianess
+
 #ifdef HAVE_ARM_ENDIAN_H
   #include <arm/endian.h>
 #elif defined(HAVE_ENDIAN_H)
@@ -18,6 +20,8 @@
   #endif
 #endif
 
+// Inline control
+
 #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
   #define FORCE_INLINE __attribute__((always_inline))
 #elif defined(_MSC_VER)
@@ -25,6 +29,8 @@
 #else
   #define FORCE_INLINE
 #endif
+
+// Struct packing
 
 #if defined(__GNUC__) || defined(__clang__)
   #define STRUCT_PACK(NAME) struct __attribute__((__packed__)) NAME
@@ -34,8 +40,11 @@
   #define STRUCT_PACK(NAME) struct NAME
 #endif
 
+#define WORD_ALIGN(X) ((((X) + 1) >> 1) << 1)
+
+// Endian handling
+
 #include <stdint.h>
-#include <math.h>
 
 static inline uint32_t FORCE_INLINE swap32(uint32_t v)
 { return (v << 24) | ((v << 8) & 0x00FF0000) | ((v >> 8) & 0x0000FF00) | (v >> 24); }
@@ -59,7 +68,9 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v)
   (((uint32_t)(A)) | ((uint32_t)(B) << 8) | ((uint32_t)(C) << 16) | ((uint32_t)(D) << 24))
 #endif
 
-#define WORD_ALIGN(X) ((((X) + 1) >> 1) << 1)
+// Maths utilities
+
+#include <math.h>
 
 #define MIN(A, B) (((A) < (B)) ? (A) : (B))
 #define MAX(A, B) (((A) > (B)) ? (A) : (B))
@@ -72,6 +83,27 @@ static inline float FORCE_INLINE efmodf(float x, float d) { float r = fmodf(x, d
 #define LERP(A, B, X) ((A) * (1 - (X)) + (B) * (X))
 #define DEGLERP(A, B, X) efmod(LERP((A), (A) - DEG_SHORTEST((A), (B)), (X)), 360.0)
 
+// Preprocessor tools
+
 #define STR(X) #X
+
+// Sized buffers
+
+#include <stddef.h>
+
+typedef struct { void* ptr; size_t len; } SizedBuf;
+
+#define BUF_SIZED(P, S) (SizedBuf){ (void*)(P), (S) }
+#define BUF_CLEAR() (SizedBuf){ NULL, 0U }
+#define BUF_EMPTY(B) (!(B).ptr)
+#define BUF_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : BUF_CLEAR())
+
+typedef struct { char* ptr; size_t len; } SizedStr;
+
+#define STR_SIZED(S, L) (SizedStr){ (S), (L) }
+#define STR_ALLOC(L) STR_SIZED(malloc((L) + 1), (L))
+#define STR_CLEAR() (SizedStr){ NULL, 0U }
+#define STR_EMPTY(B) (!(B).ptr || !(B).len)
+#define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : STR_CLEAR())
 
 #endif//UTIL_H

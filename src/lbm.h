@@ -70,9 +70,10 @@ typedef uint32_t Colour;
 #define COLOUR_B(C) (((C) & COLOUR_BMASK) >> COLOUR_BSHIFT)
 #define COLOUR_A(C) (((C) & COLOUR_AMASK) >> COLOUR_ASHIFT)
 
-#define LBM_MAX_CRNG 16
+#define LBM_PAL_SIZE 256
+#define LBM_MAX_CRNG  16
 
-typedef struct
+typedef struct Lbm
 {
 	LbmIocb iocb;
 	LbmCbCustomChunkSubscriber customSub;
@@ -80,7 +81,7 @@ typedef struct
 
 	int w, h;
 	uint8_t* pixels;
-	Colour palette[256];
+	Colour palette[LBM_PAL_SIZE];
 	uint8_t rangeLow[LBM_MAX_CRNG];
 	uint8_t rangeHigh[LBM_MAX_CRNG];
 	int16_t rangeRate[LBM_MAX_CRNG];
@@ -98,8 +99,8 @@ typedef struct
 int lbmLoad(Lbm* out);
 void lbmFree(Lbm* out);
 
-extern const Colour lbmPbmDefaultPal[256];
-extern const Colour lbmIlbmDosDefaultPal[256];
-extern const Colour lbmIlbmDefaultPal[256];
+extern const Colour lbmPbmDefaultPal[LBM_PAL_SIZE];
+extern const Colour lbmIlbmDosDefaultPal[LBM_PAL_SIZE];
+extern const Colour lbmIlbmDefaultPal[LBM_PAL_SIZE];
 
 #endif//LBM_H

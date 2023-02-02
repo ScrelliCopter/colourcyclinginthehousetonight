@@ -9,9 +9,9 @@ typedef struct
 {
 	int w, h;
 
-	const uint8_t* srcPix;
-	const Colour*  srcPal;
-	Colour    pal[256];
+	Colour    srcPal[LBM_PAL_SIZE];
+	Colour    pal[LBM_PAL_SIZE];
+	uint8_t*  srcPix;
 	Colour*   comb;
 	SurfSpan* spans;
 	int       spanBufLen;
@@ -21,7 +21,7 @@ typedef struct
 
 #define SURFACE_CLEAR() (Surface){  \
 	.w = 0, .h = 0,                 \
-	.srcPix = NULL, .srcPal = NULL, \
+	.srcPix = NULL,                 \
 	.comb = NULL,                   \
 	.spans = NULL, .spanBufLen = 0, \
 	.spanBeg = 0, .spanEnd = 0 }
@@ -50,10 +50,5 @@ void surfaceCombinePartial(Surface* surf);
 typedef struct SDL_Texture SDL_Texture;
 
 void surfaceUpdate(Surface* surf, SDL_Texture* tex);
-
-typedef struct SDL_Renderer SDL_Renderer;
-#include <SDL_rect.h>
-
-void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* rect);
 
 #endif //SURFACE_H

@@ -19,7 +19,7 @@ typedef struct
 
 	LbmChunkMask    chunkMask;
 	LbmBitmapHeader bmhd;
-	Colour          cmap[256];
+	Colour          cmap[LBM_PAL_SIZE];
 	unsigned        numCmap;
 	LbmColourRange  crng[LBM_MAX_CRNG];
 	unsigned        numCrng;
@@ -103,7 +103,7 @@ static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
 		return -1;
 
 	s->numCmap = chunk->chunkLen / 3;
-	if (!s->numCmap || s->numCmap > 256)
+	if (!s->numCmap || s->numCmap > LBM_PAL_SIZE)
 		return -1;
 
 	for (size_t i = 0; i < s->numCmap; ++i)
@@ -417,13 +417,13 @@ int lbmLoad(Lbm* out)
 		memcpy(out->palette, s.cmap, s.numCmap * sizeof(Colour));
 
 	// Default palette for missing or short palette
-	if (s.numCmap < 256)
+	if (s.numCmap < LBM_PAL_SIZE)
 	{
 		const Colour* defaultPal = lbmPbmDefaultPal;
 		if (s.formatId == IFF_ILBM)
 			defaultPal = lbmIlbmDefaultPal;
 
-		unsigned copyNum = 256 - s.numCmap;
+		unsigned copyNum = LBM_PAL_SIZE - s.numCmap;
 		memcpy(&out->palette[s.numCmap], &defaultPal[s.numCmap], copyNum * sizeof(Colour));
 	}
 
