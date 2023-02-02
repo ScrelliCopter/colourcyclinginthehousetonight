@@ -7,17 +7,17 @@
 
 
 #define AUDIO_PREFIX_LEN 6
-const char audioPrefix[AUDIO_PREFIX_LEN] = "audio/";
+static const char audioPrefix[AUDIO_PREFIX_LEN] = "audio/";
 #define AUDIO_SUFFIX_LEN 4
-const char audioSuffix[AUDIO_SUFFIX_LEN] = ".ogg";
+static const char audioSuffix[AUDIO_SUFFIX_LEN] = ".ogg";
 
-char* title = NULL;
-char* audioPath = NULL;
-uint8_t volume = 0;
-void* precompSpans = NULL;
-uint32_t precompSpansLen = 0;
-void* oggv = NULL;
-uint32_t oggvLen = 0;
+static char* title = NULL;
+static char* audioPath = NULL;
+static uint8_t volume = 0;
+static void* precompSpans = NULL;
+static uint32_t precompSpansLen = 0;
+static void* oggv = NULL;
+static uint32_t oggvLen = 0;
 
 #define IFF_CUSTOM_SCENE_INFO SDL_FOURCC('S', 'N', 'F', 'O')
 #define IFF_CUSTOM_OGG_VORBIS SDL_FOURCC('O', 'G', 'G', 'V')
@@ -89,7 +89,7 @@ static int customHandler(uint32_t fourcc, uint32_t size, uint8_t* chunk)
 	return 0;
 }
 
-void drawPalette(SDL_Renderer* rend, const Colour pal[], int size)
+static void drawPalette(SDL_Renderer* rend, const Colour pal[], int size)
 {
 	for (unsigned i = 0; i < 256; ++i)
 	{
@@ -103,7 +103,7 @@ void drawPalette(SDL_Renderer* rend, const Colour pal[], int size)
 	}
 }
 
-void recalcDisplayRect(SDL_Rect* dst, int* scrW, int* scrH, double srcAspect, SDL_Renderer* rend)
+static void recalcDisplayRect(SDL_Rect* dst, int* scrW, int* scrH, double srcAspect, SDL_Renderer* rend)
 {
 	SDL_GetRendererOutputSize(rend, scrW, scrH);
 	double dstAspect = (double)*scrW / (double)*scrH;
@@ -127,6 +127,79 @@ void recalcDisplayRect(SDL_Rect* dst, int* scrW, int* scrH, double srcAspect, SD
 	}
 }
 
+static SDL_Window*   win  = NULL;
+static SDL_Renderer* rend = NULL;
+static SDL_Texture*  tex  = NULL;
+static Surface       surf = SURFACE_CLEAR();
+static Lbm           lbm  = LBM_CLEAR();
+
+static double srcAspect;
+static SDL_Rect dstRect;
+static int scrW, scrH;
+
+static bool quit = false;
+static bool surfDamage = false;
+static bool realtime   = false;
+static bool damage     = false;
+
+static bool spanView = false;
+static bool palView  = false;
+static int method = 1;
+static int speed  = 2;
+
+static float cycleTimers[LBM_MAX_CRNG];
+static uint8_t cyclePos[LBM_MAX_CRNG];
+
+static void handleEvent(const SDL_Event* event)
+{
+	if (event->type == SDL_QUIT)
+		quit = true;
+	else if (event->type == SDL_KEYDOWN)
+	{
+		if (event->key.keysym.scancode == SDL_SCANCODE_P)
+		{
+			palView = !palView;
+			damage = true;
+		}
+		else if (event->key.keysym.scancode == SDL_SCANCODE_S)
+		{
+			spanView = !spanView;
+			damage = true;
+		}
+		else if (event->key.keysym.scancode == SDL_SCANCODE_M)
+		{
+			method = (method + 1) % 3;
+			if (method == 0)
+				for (unsigned i = 0; i < lbm.numRange; ++i)
+					surfaceRange(&surf, lbm.rangeHigh[i], lbm.rangeLow[i], cyclePos[i]);
+			surfDamage = true;
+			damage = true;
+		}
+		else if (event->key.keysym.scancode == SDL_SCANCODE_LEFTBRACKET)
+		{
+			if (speed > 0)
+				--speed;
+		}
+		else if (event->key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET)
+		{
+			if (speed < 4)
+				++speed;
+		}
+	}
+	else if (event->type == SDL_WINDOWEVENT)
+	{
+		if (event->window.event == SDL_WINDOWEVENT_RESIZED)
+		{
+			recalcDisplayRect(&dstRect, &scrW, &scrH, srcAspect, rend);
+			damage = true;
+		}
+		else if (event->window.event == SDL_WINDOWEVENT_EXPOSED && !realtime)
+		{
+			damage = true;
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc != 2)
@@ -134,12 +207,6 @@ int main(int argc, char** argv)
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		return 1;
-
-	SDL_Window*   win  = NULL;
-	SDL_Renderer* rend = NULL;
-	SDL_Texture*  tex  = NULL;
-	Surface       surf = SURFACE_CLEAR();
-	Lbm           lbm  = LBM_CLEAR();
 
 	FILE* file = fopen(argv[1], "rb");
 	if (!file)
@@ -181,17 +248,13 @@ int main(int argc, char** argv)
 	const uint16_t cycleMod = 0x4000;
 	const double rateScale = (1.0 / (double)cycleMod);
 
-	float cycleTimers[LBM_MAX_CRNG];
-	uint8_t cyclePos[LBM_MAX_CRNG];
 	for (unsigned i = 0; i < LBM_MAX_CRNG; ++i)
 	{
 		cycleTimers[i] = 0.0f;
 		cyclePos[i] = 0;
 	}
 
-	const double srcAspect = (double)lbm.w / (double)lbm.h;
-	SDL_Rect dstRect;
-	int scrW, scrH;
+	srcAspect = (double)lbm.w / (double)lbm.h;
 	recalcDisplayRect(&dstRect, &scrW, &scrH, srcAspect, rend);
 
 	// Play embedded or linked audio file
@@ -216,79 +279,50 @@ int main(int argc, char** argv)
 		audioPath = NULL;
 	}
 
-	bool spanView = false;
-	bool palView = false;
-	int method = 1;
-	int speed = 2;
-
 	const double perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
 	Uint64 tick = SDL_GetPerformanceCounter();
-	bool quit = false;
+	realtime = (surf.spans && surf.spanBeg >= 0 && surf.spanEnd >= surf.spanBeg) ? true : false;
 	while (!quit)
 	{
-		bool damage = false;
+		surfDamage = false;
+		damage = realtime;
 		SDL_Event event;
-		while (SDL_PollEvent(&event) > 0)
-		{
-			if (event.type == SDL_QUIT)
-				quit = true;
-			else if (event.type == SDL_KEYDOWN)
-			{
-				if (event.key.keysym.scancode == SDL_SCANCODE_P)
-					palView = !palView;
-				else if (event.key.keysym.scancode == SDL_SCANCODE_S)
-					spanView = !spanView;
-				else if (event.key.keysym.scancode == SDL_SCANCODE_M)
-				{
-					method = (method + 1) % 3;
-					if (method == 0)
-						for (unsigned i = 0; i < lbm.numRange; ++i)
-							surfaceRange(&surf, lbm.rangeHigh[i], lbm.rangeLow[i], cyclePos[i]);
-					damage = true;
-				}
-				else if (event.key.keysym.scancode == SDL_SCANCODE_LEFTBRACKET)
-				{
-					if (speed > 0)
-						--speed;
-				}
-				else if (event.key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET)
-				{
-					if (speed < 4)
-						++speed;
-				}
-			}
-			else if (event.type == SDL_WINDOWEVENT)
-			{
-				if (event.window.event == SDL_WINDOWEVENT_RESIZED)
-					recalcDisplayRect(&dstRect, &scrW, &scrH, srcAspect, rend);
-			}
-		}
+		if (realtime)
+			while (SDL_PollEvent(&event) > 0) handleEvent(&event);
+		else if (SDL_WaitEvent(&event))
+			handleEvent(&event);
 
 		// Timing
-		const Uint64 lastTick = tick;
-		tick = SDL_GetPerformanceCounter();
-		const double dTick = perfScale * (double)(tick - lastTick);
-		const double timeScale = (1 << speed) / 4.0;
-
 		bool rangeTrigger[LBM_MAX_CRNG];
-		for (unsigned i = 0; i < lbm.numRange; ++i)
+		if (realtime)
 		{
-			rangeTrigger[i] = false;
-			if (!lbm.rangeRate[i])
-				continue;
+			const Uint64 lastTick = tick;
+			tick = SDL_GetPerformanceCounter();
+			const double dTick = perfScale * (double)(tick - lastTick);
+			const double timeScale = (1 << speed) / 4.0;
 
-			uint16_t rate = (uint16_t)abs(lbm.rangeRate[i]);
-			uint8_t range = lbm.rangeHigh[i] + 1 - lbm.rangeLow[i];
-
-			cycleTimers[i] += (float)(rate * timeScale * 60.0 * dTick);
-			if (cycleTimers[i] >= (float)cycleMod)
+			for (unsigned i = 0; i < lbm.numRange; ++i)
 			{
-				cycleTimers[i] = efmodf(cycleTimers[i], cycleMod);
-				bool dir = lbm.rangeRate[i] == (int16_t)rate;
-				cyclePos[i] = (uint8_t)emod(cyclePos[i] + (dir ? -1 : 1), range);
-				rangeTrigger[i] = true;
+				rangeTrigger[i] = false;
+				if (!lbm.rangeRate[i])
+					continue;
+
+				uint16_t rate = (uint16_t)abs(lbm.rangeRate[i]);
+				uint8_t range = lbm.rangeHigh[i] + 1 - lbm.rangeLow[i];
+
+				cycleTimers[i] += (float)(rate * timeScale * 60.0 * dTick);
+				if (cycleTimers[i] >= (float)cycleMod)
+				{
+					cycleTimers[i] = efmodf(cycleTimers[i], cycleMod);
+					bool dir = lbm.rangeRate[i] == (int16_t)rate;
+					cyclePos[i] = (uint8_t)emod(cyclePos[i] + (dir ? -1 : 1), range);
+					rangeTrigger[i] = true;
+				}
 			}
 		}
+
+		if (!damage)
+			continue;
 
 		// Update palette
 		if (method == 0)
@@ -300,7 +334,7 @@ int main(int argc, char** argv)
 						surfacePalShiftRight(&surf, lbm.rangeHigh[i], lbm.rangeLow[i]);
 					else
 						surfacePalShiftLeft(&surf, lbm.rangeHigh[i], lbm.rangeLow[i]);
-					damage = true;
+					surfDamage = true;
 				}
 		}
 		else if (method == 1)
@@ -308,18 +342,18 @@ int main(int argc, char** argv)
 			for (unsigned i = 0; i < lbm.numRange; ++i)
 				surfaceRangeLinear(&surf, lbm.rangeHigh[i], lbm.rangeLow[i], cyclePos[i],
 					copysign(cycleTimers[i] * rateScale, -lbm.rangeRate[i]));
-			damage = true;
+			surfDamage = true;
 		}
 		else if (method == 2)
 		{
 			for (unsigned i = 0; i < lbm.numRange; ++i)
 				surfaceRangeHsluv(&surf, lbm.rangeHigh[i], lbm.rangeLow[i], cyclePos[i],
 					copysign(cycleTimers[i] * rateScale, -lbm.rangeRate[i]));
-			damage = true;
+			surfDamage = true;
 		}
 
 		// Animate image with palette
-		if (damage)
+		if (surfDamage)
 			surfaceUpdate(&surf, tex);
 
 		// Render everthing
@@ -333,6 +367,7 @@ int main(int argc, char** argv)
 			drawPalette(rend, surf.pal, MAX(7, (1024 + scrW + scrH) >> 8));
 
 		SDL_RenderPresent(rend);
+		damage = false;
 	}
 
 	ret = 0;
