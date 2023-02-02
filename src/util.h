@@ -59,16 +59,18 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v)
   (((uint32_t)(A)) | ((uint32_t)(B) << 8) | ((uint32_t)(C) << 16) | ((uint32_t)(D) << 24))
 #endif
 
+#define WORD_ALIGN(X) ((((X) + 1) >> 1) << 1)
+
 #define MIN(A, B) (((A) < (B)) ? (A) : (B))
 #define MAX(A, B) (((A) > (B)) ? (A) : (B))
 
 static inline int FORCE_INLINE emod(int i, int d) { int r = i % d; return r < 0 ? r + d : r; }
 static inline double FORCE_INLINE efmod(double x, double d) { double r = fmod(x, d); return r < 0.0 ? r + d : r; }
 static inline float FORCE_INLINE efmodf(float x, float d) { float r = fmodf(x, d); return r < 0.0f ? r + d : r; }
-#define DEG_SHORTESTDE(S, E) (efmod((S) - (E) + 180.0, 360.0) - 180.0)
+#define DEG_SHORTEST(S, E) (efmod((S) - (E) + 180.0, 360.0) - 180.0)
 
 #define LERP(A, B, X) ((A) * (1 - (X)) + (B) * (X))
-#define DEGLERP(A, B, X) efmod(LERP((A), (A) - DEG_SHORTESTDE((A), (B)), (X)), 360.0)
+#define DEGLERP(A, B, X) efmod(LERP((A), (A) - DEG_SHORTEST((A), (B)), (X)), 360.0)
 
 #define STR(X) #X
 

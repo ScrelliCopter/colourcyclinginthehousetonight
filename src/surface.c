@@ -385,7 +385,7 @@ void surfaceUpdate(Surface* surf, SDL_Texture* tex)
 
 void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* rect)
 {
-	if (!surf || !rend)
+	if (!surf || !surf->spans || !rend || !rect)
 		return;
 
 	// Save current renderer state
@@ -404,7 +404,7 @@ void surfaceVisualiseSpans(SDL_Renderer* rend, Surface* surf, const SDL_Rect* re
 
 	const SurfSpan* spans = surf->spans;
 	SDL_FRect fdst = { 0, 0, 0, sh };
-	for (int i = surf->spanBeg; i < surf->spanEnd; ++i)
+	for (int i = surf->spanBeg; i <= surf->spanEnd; ++i)
 	{
 		SurfSpan span = (*spans++);
 		if (span.l < 0) // Skip empties

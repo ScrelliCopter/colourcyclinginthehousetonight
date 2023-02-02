@@ -145,6 +145,48 @@ static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
 	return 0;
 }
 
+static size_t lbmReadRleRow(LbmReaderState* s, uint8_t* dst, size_t rowLen, size_t chunkLen, size_t* read)
+{
+	size_t curRead = (*read), dstRead = 0;
+	size_t copyLen = 0, runLen = 0;
+
+	while (dstRead < rowLen && curRead < chunkLen)
+	{
+		if (copyLen)
+		{
+			IO_READ(&dst[dstRead], copyLen);
+			dstRead += copyLen;
+			curRead += copyLen;
+			copyLen = 0;
+		}
+		else if (runLen)
+		{
+			uint8_t byte;
+			IO_READ_UBYTE(byte);
+			curRead += 1;
+			memset(&dst[dstRead], byte, runLen);
+			dstRead += runLen;
+			runLen = 0;
+		}
+		else
+		{
+			int8_t byte;
+			IO_READ_BYTE(byte);
+			curRead += 1;
+			if (byte >= 0)
+			{
+				copyLen = MIN((size_t)byte + 1 + dstRead, rowLen) - dstRead;
+				copyLen = MIN(copyLen + curRead, chunkLen) - curRead;
+			}
+			else if (byte >= -127)
+				runLen = MIN((size_t)-byte + 1 + dstRead, rowLen) - dstRead;
+		}
+	}
+
+	(*read) = curRead;
+	return dstRead;
+}
+
 static size_t lbmReadPbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t chunkLen)
 {
 	if (s->bmhd.compression == CMP_NONE)
@@ -157,43 +199,15 @@ static size_t lbmReadPbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t 
 	}
 	else if (s->bmhd.compression == CMP_BYTE_RUN1)
 	{
-		size_t read = 0, pixRead = 0;
-		size_t copyLen = 0, runLen = 0;
-		do
+		size_t read = 0;
+		const size_t stride = s->bmhd.w;
+		for (unsigned j = 0; j < s->bmhd.h; ++j)
 		{
-			if (copyLen)
-			{
-				IO_READ(&pix[pixRead], copyLen);
-				pixRead += copyLen;
-				read += copyLen;
-				copyLen = 0;
-			}
-			else if (runLen)
-			{
-				uint8_t byte;
-				IO_READ_UBYTE(byte);
-				read += 1;
-				memset(&pix[pixRead], byte, runLen);
-				pixRead += runLen;
-				runLen = 0;
-			}
-			else
-			{
-				int8_t byte;
-				IO_READ_BYTE(byte);
-				read += 1;
-				if (byte >= 0)
-				{
-					copyLen = MIN((size_t)byte + 1 + pixRead, pixLen) - pixRead;
-					copyLen = MIN(copyLen + read, chunkLen) - read;
-				}
-				else if (byte >= -127)
-					runLen = MIN((size_t)-byte + 1 + pixRead, pixLen) - pixRead;
-			}
+			size_t rowRead = lbmReadRleRow(s, pix, stride, chunkLen, &read);
+			if (rowRead < stride)
+				memset(&pix[rowRead], 0, rowRead - stride);
+			pix += stride;
 		}
-		while (pixRead < pixLen && read < chunkLen);
-		if (pixRead < pixLen)
-			memset(&pix[pixRead], 0, pixRead - pixLen);
 		return read;
 	}
 	return SIZE_MAX;
@@ -201,15 +215,75 @@ static size_t lbmReadPbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t 
 
 static size_t lbmReadIlbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t chunkLen)
 {
-	if (s->bmhd.compression == CMP_NONE)
-	{
+	const unsigned pixStride = s->bmhd.w;
+	const unsigned numPlanes = s->bmhd.numPlanes;
+	const unsigned planeStride = ((((pixStride * numPlanes + 7) / 8) + numPlanes - 1) / numPlanes); // Word align or?
+
+	const size_t irowLen = planeStride * numPlanes;
+	uint8_t* irow = malloc(irowLen);
+	if (!irow)
 		return SIZE_MAX;
-	}
-	else if (s->bmhd.compression == CMP_BYTE_RUN1)
+
+	size_t read = 0;
+	uint8_t* pixRow = pix;
+	for (unsigned j = 0; j < s->bmhd.h; ++j)
 	{
-		return SIZE_MAX;
+		// Read planar data into temporary buffer
+		size_t irowRead, prowRead;
+		if (s->bmhd.compression == CMP_BYTE_RUN1)
+		{
+			irowRead = lbmReadRleRow(s, irow, irowLen, chunkLen, &read);
+			if (!irowRead)
+				break;
+		}
+		else
+		{
+			//FIXME: test this
+			irowRead = IO_READ(pix, irowLen);
+			read += irowRead;
+			if (irowRead & 0x1)
+			{
+				IO_SEEK(1, LBMIO_SEEK_CUR);
+				++read;
+			}
+		}
+		prowRead = (irowRead * 8) / numPlanes;
+
+		// Interleave bit planes
+		unsigned byte = 0, shift = 8;
+		for (unsigned i = 0; i < MIN(pixStride, prowRead); ++i)
+		{
+			--shift;
+			uint8_t c = 0;
+			switch (numPlanes)
+			{
+			case 8: c |= ((irow[byte + planeStride * 7] >> shift) & 0x1) << 7;
+			case 7: c |= ((irow[byte + planeStride * 6] >> shift) & 0x1) << 6;
+			case 6: c |= ((irow[byte + planeStride * 5] >> shift) & 0x1) << 5;
+			case 5: c |= ((irow[byte + planeStride * 4] >> shift) & 0x1) << 4;
+			case 4: c |= ((irow[byte + planeStride * 3] >> shift) & 0x1) << 3;
+			case 3: c |= ((irow[byte + planeStride * 2] >> shift) & 0x1) << 2;
+			case 2: c |= ((irow[byte + planeStride] >> shift) & 0x1) << 1;
+			case 1: c |= (irow[byte] >> shift) & 0x1;
+			}
+			pixRow[i] = c;
+
+			if (shift == 0)
+			{
+				shift = 8;
+				++byte;
+			}
+		}
+
+		// Fill underread
+		if (prowRead < pixStride)
+			memset(&pixRow[prowRead], 0, prowRead - pixStride); //TODO: fill with "transparent" colour?
+
+		pixRow += pixStride;
 	}
-	return SIZE_MAX;
+
+	free(irow);
+	return read;
 }
 
 static int lbmReadBody(LbmReaderState* s, const IffChunkHeader* chunk)
@@ -291,7 +365,7 @@ static int lbmReadSections(LbmReaderState* s)
 		{
 			if (s->bmhd.masking != MSK_NONE)
 				return -1;
-			if (s->bmhd.numPlanes != 8)
+			if (s->bmhd.numPlanes > 8 || (s->formatId == IFF_PBM && s->bmhd.numPlanes < 8))
 				return -1;
 		}
 	}
@@ -325,7 +399,6 @@ int lbmLoad(Lbm* out)
 	if (s.form.chunkId != IFF_FORM)
 		goto cleanup;
 	s.formatId = lbmReadFormatId(&s);
-	if (s.formatId == IFF_ILBM) goto cleanup; // We don't support ILBM for now
 	if (s.formatId != IFF_PBM && s.formatId != IFF_ILBM)
 		goto cleanup;
 	if (lbmReadSections(&s))
