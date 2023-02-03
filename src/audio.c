@@ -1,3 +1,4 @@
+/* audio.c - (C) 2023 a dinosaur (zlib) */
 #include "audio.h"
 #include "util.h"
 #include "stb_vorbis.h"

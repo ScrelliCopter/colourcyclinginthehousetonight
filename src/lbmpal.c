@@ -1,3 +1,4 @@
+/* lbmpal.c - Public domain */
 #include "lbm.h"
 
 // Deluxe Paint Animation (MS-DOS)

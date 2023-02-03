@@ -1,3 +1,4 @@
+/* lbmio.c - (C) 2023 a dinosaur (zlib) */
 #include "lbm.h"
 #include <stdio.h>
 

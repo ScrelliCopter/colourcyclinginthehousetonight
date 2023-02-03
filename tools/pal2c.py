@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# scrape.py - Public domain
+
 import os
 import sys
 from pathlib import Path

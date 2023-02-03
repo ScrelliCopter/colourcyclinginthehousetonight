@@ -1,3 +1,4 @@
+/* display.c - (C) 2023 a dinosaur (zlib) */
 #include "display.h"
 #include "surface.h"
 #include "util.h"

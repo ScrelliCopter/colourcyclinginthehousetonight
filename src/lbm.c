@@ -1,3 +1,4 @@
+/* lbm.c - (C) 2023 a dinosaur (zlib) */
 #include "lbm.h"
 #include "lbmdef.h"
 #include <stdlib.h>

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# update_libs.py - Public domain
+
 from collections import namedtuple
 from urllib.request import urlopen
 from urllib.error import URLError

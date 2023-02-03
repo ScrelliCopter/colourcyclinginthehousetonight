@@ -1,3 +1,4 @@
+/* main.c - (C) 2023 a dinosaur (zlib) */
 #include "display.h"
 #include "audio.h"
 #include "util.h"

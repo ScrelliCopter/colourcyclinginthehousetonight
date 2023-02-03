@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# convert.py - (C) 2023 a dinosaur (zlib)
+
 import sys
 import re
 from pathlib import Path

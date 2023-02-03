@@ -1,3 +1,4 @@
+/* surface.c - (C) 2023 a dinosaur (zlib) */
 #include "surface.h"
 #include "util.h"
 #include "hsluv.h"
