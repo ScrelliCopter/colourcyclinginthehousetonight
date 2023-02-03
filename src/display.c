@@ -48,7 +48,7 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 
 		.surf       = SURFACE_CLEAR(),
 		.surfTex    = NULL,
-		.surfDamage = true,
+		.surfDamage = false,
 		.numRange   = 0U,
 
 		// Set by displayResize()
@@ -125,6 +125,7 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, uint32_t 
 		d->cyclePos[i]     = 0;
 	}
 
+	d->surfDamage = true;
 	displayDamage(d);
 	return 0;
 }
