@@ -48,27 +48,27 @@ void   lbmDefaultFileClose(void* user);
 typedef int (*LbmCbCustomChunkSubscriber)(uint32_t fourcc);
 typedef int (*LbmCbCustomChunkHandler)(uint32_t fourcc, uint32_t size, uint8_t* chunk);
 
-typedef uint32_t Colour;
-#define COLOUR_RSHIFT 16
-#define COLOUR_GSHIFT  8
-#define COLOUR_BSHIFT  0
-#define COLOUR_ASHIFT 24
-#define COLOUR_RMASK 0x00FF0000
-#define COLOUR_GMASK 0x0000FF00
-#define COLOUR_BMASK 0x000000FF
-#define COLOUR_AMASK 0xFF000000
+typedef uint32_t Color;
+#define COLOR_RSHIFT 16
+#define COLOR_GSHIFT  8
+#define COLOR_BSHIFT  0
+#define COLOR_ASHIFT 24
+#define COLOR_RMASK 0x00FF0000
+#define COLOR_GMASK 0x0000FF00
+#define COLOR_BMASK 0x000000FF
+#define COLOR_AMASK 0xFF000000
 
-#define MAKE_COLOUR(R, G, B, A) ( \
-	(COLOUR_BMASK & ((Colour)(B) << COLOUR_BSHIFT)) | \
-	(COLOUR_GMASK & ((Colour)(G) << COLOUR_GSHIFT)) | \
-	(COLOUR_RMASK & ((Colour)(R) << COLOUR_RSHIFT)) | \
-	(COLOUR_AMASK & ((Colour)(A) << COLOUR_ASHIFT)))
-#define MAKE_RGB(R, G, B) MAKE_COLOUR((R), (G), (B), 0xFF)
+#define MAKE_COLOR(R, G, B, A) ( \
+	(COLOR_BMASK & ((Color)(B) << COLOR_BSHIFT)) | \
+	(COLOR_GMASK & ((Color)(G) << COLOR_GSHIFT)) | \
+	(COLOR_RMASK & ((Color)(R) << COLOR_RSHIFT)) | \
+	(COLOR_AMASK & ((Color)(A) << COLOR_ASHIFT)))
+#define MAKE_RGB(R, G, B) MAKE_COLOR((R), (G), (B), 0xFF)
 
-#define COLOUR_R(C) (((C) & COLOUR_RMASK) >> COLOUR_RSHIFT)
-#define COLOUR_G(C) (((C) & COLOUR_GMASK) >> COLOUR_GSHIFT)
-#define COLOUR_B(C) (((C) & COLOUR_BMASK) >> COLOUR_BSHIFT)
-#define COLOUR_A(C) (((C) & COLOUR_AMASK) >> COLOUR_ASHIFT)
+#define COLOR_R(C) (((C) & COLOR_RMASK) >> COLOR_RSHIFT)
+#define COLOR_G(C) (((C) & COLOR_GMASK) >> COLOR_GSHIFT)
+#define COLOR_B(C) (((C) & COLOR_BMASK) >> COLOR_BSHIFT)
+#define COLOR_A(C) (((C) & COLOR_AMASK) >> COLOR_ASHIFT)
 
 #define LBM_PAL_SIZE 256
 #define LBM_MAX_CRNG  16
@@ -81,7 +81,7 @@ typedef struct Lbm
 
 	int w, h;
 	uint8_t* pixels;
-	Colour palette[LBM_PAL_SIZE];
+	Color palette[LBM_PAL_SIZE];
 	uint8_t rangeLow[LBM_MAX_CRNG];
 	uint8_t rangeHigh[LBM_MAX_CRNG];
 	int16_t rangeRate[LBM_MAX_CRNG];
@@ -99,8 +99,8 @@ typedef struct Lbm
 int lbmLoad(Lbm* out);
 void lbmFree(Lbm* out);
 
-extern const Colour lbmPbmDefaultPal[LBM_PAL_SIZE];
-extern const Colour lbmIlbmDosDefaultPal[LBM_PAL_SIZE];
-extern const Colour lbmIlbmDefaultPal[LBM_PAL_SIZE];
+extern const Color lbmPbmDefaultPal[LBM_PAL_SIZE];
+extern const Color lbmIlbmDosDefaultPal[LBM_PAL_SIZE];
+extern const Color lbmIlbmDefaultPal[LBM_PAL_SIZE];
 
 #endif//LBM_H

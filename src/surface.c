@@ -9,7 +9,7 @@
 
 int surfaceInit(Surface* surf,
 	int w, int h,
-	const uint8_t* pix, const Colour pal[])
+	const uint8_t* pix, const Color pal[])
 {
 	if (!surf || !pix || !pal || !w || !h)
 		return -1;
@@ -18,7 +18,7 @@ int surfaceInit(Surface* surf,
 	if (!surf->srcPix)
 		return -1;
 
-	surf->comb = malloc(w * h * sizeof(Colour));
+	surf->comb = malloc(w * h * sizeof(Color));
 	if (!surf->comb)
 		return -1;
 
@@ -57,7 +57,7 @@ void surfacePalShiftRight(Surface* surf, uint8_t hi, uint8_t low)
 	if (!surf || low >= hi)
 		return;
 
-	Colour tmp = surf->pal[hi];
+	Color tmp = surf->pal[hi];
 	for (unsigned j = hi; j > low; --j)
 		surf->pal[j] = surf->pal[j - 1];
 	surf->pal[low] = tmp;
@@ -68,7 +68,7 @@ void surfacePalShiftLeft(Surface* surf, uint8_t hi, uint8_t low)
 	if (!surf || low >= hi)
 		return;
 
-	Colour tmp = surf->pal[low];
+	Color tmp = surf->pal[low];
 	SDL_memcpy4(&surf->pal[low], &surf->pal[low + 1], hi - low);
 	surf->pal[hi] = tmp;
 }
@@ -95,20 +95,20 @@ void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, doubl
 	unsigned frame = (unsigned)rateTime;
 	tween = rateTime - (double)frame;
 
-	const Colour* src = surf->srcPal;
-	Colour* dst = surf->pal;
+	const Color* src = surf->srcPal;
+	Color* dst = surf->pal;
 	for (unsigned j = 0; j < range; ++j)
 	{
 		unsigned oldIdx = low + (j + frame) % range;
 		unsigned newIdx = low + (j + frame + 1) % range;
-		Colour old8 = src[oldIdx & 0xFF];
-		Colour new8 = src[newIdx & 0xFF];
+		Color old8 = src[oldIdx & 0xFF];
+		Color new8 = src[newIdx & 0xFF];
 
-		dst[low + j] = MAKE_COLOUR(
-			(uint8_t)LERP((double)COLOUR_R(old8), (double)COLOUR_R(new8), tween),
-			(uint8_t)LERP((double)COLOUR_G(old8), (double)COLOUR_G(new8), tween),
-			(uint8_t)LERP((double)COLOUR_B(old8), (double)COLOUR_B(new8), tween),
-			(uint8_t)LERP((double)COLOUR_A(old8), (double)COLOUR_A(new8), tween));
+		dst[low + j] = MAKE_COLOR(
+			(uint8_t)LERP((double)COLOR_R(old8), (double)COLOR_R(new8), tween),
+			(uint8_t)LERP((double)COLOR_G(old8), (double)COLOR_G(new8), tween),
+			(uint8_t)LERP((double)COLOR_B(old8), (double)COLOR_B(new8), tween),
+			(uint8_t)LERP((double)COLOR_A(old8), (double)COLOR_A(new8), tween));
 	}
 }
 
@@ -122,25 +122,25 @@ void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double
 	unsigned frame = (unsigned)rateTime;
 	tween = rateTime - (double)frame;
 
-	const Colour* src = surf->srcPal;
-	Colour* dst = surf->pal;
+	const Color* src = surf->srcPal;
+	Color* dst = surf->pal;
 	for (unsigned j = 0; j < range; ++j)
 	{
 		unsigned oldIdx = low + (j + frame) % range;
 		unsigned newIdx = low + (j + frame + 1) % range;
-		Colour old8 = src[oldIdx & 0xFF];
-		Colour new8 = src[newIdx & 0xFF];
+		Color old8 = src[oldIdx & 0xFF];
+		Color new8 = src[newIdx & 0xFF];
 
-		double oldR = COLOUR_R(old8) / 255.0, oldG = COLOUR_G(old8) / 255.0, oldB = COLOUR_B(old8) / 255.0;
-		double newR = COLOUR_R(new8) / 255.0, newG = COLOUR_G(new8) / 255.0, newB = COLOUR_B(new8) / 255.0;
+		double oldR = COLOR_R(old8) / 255.0, oldG = COLOR_G(old8) / 255.0, oldB = COLOR_B(old8) / 255.0;
+		double newR = COLOR_R(new8) / 255.0, newG = COLOR_G(new8) / 255.0, newB = COLOR_B(new8) / 255.0;
 		double oldH, oldS, oldL, newH, newS, newL;
 		rgb2hsluv(oldR, oldG, oldB, &oldH, &oldS, &oldL);
 		rgb2hsluv(newR, newG, newB, &newH, &newS, &newL);
 		double h = DEGLERP(oldH, newH, tween), s = LERP(oldS, newS, tween), v = LERP(oldL, newL, tween);
 		double r, g, b;
 		hsluv2rgb(h, s, v, &r, &g, &b);
-		uint8_t a = LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
-		dst[low + j] = MAKE_COLOUR((uint8_t)(r * 255.0), (uint8_t)(g * 255.0), (uint8_t)(b * 255.0), a);
+		uint8_t a = LERP(COLOR_A(old8), COLOR_A(new8), tween);
+		dst[low + j] = MAKE_COLOR((uint8_t)(r * 255.0), (uint8_t)(g * 255.0), (uint8_t)(b * 255.0), a);
 	}
 }
 
@@ -327,7 +327,7 @@ void surfaceCombine(Surface* surf)
 		return;
 
 	const uint8_t* srcPix = surf->srcPix;
-	Colour* dst = surf->comb;
+	Color* dst = surf->comb;
 	size_t dstLen = surf->w * (size_t)surf->h;
 
 	for (size_t i = 0; i < dstLen; ++i)
@@ -343,7 +343,7 @@ void surfaceCombinePartial(Surface* surf)
 		return;
 
 	const uint8_t* srcPix = surf->srcPix + surf->spanBeg * surf->w;
-	Colour* dst = surf->comb + surf->spanBeg * surf->w;
+	Color* dst = surf->comb + surf->spanBeg * surf->w;
 
 	int numSpans = MIN(surf->h, surf->spanEnd + 1 - surf->spanBeg);
 	for (int i = 0; i < numSpans; ++i)
@@ -379,6 +379,6 @@ void surfaceUpdate(Surface* surf, SDL_Texture* tex)
 		surfaceCombinePartial(surf);
 	else
 		surfaceCombine(surf);
-	int pitch = surf->w * (int)sizeof(Colour);
+	int pitch = surf->w * (int)sizeof(Color);
 	SDL_UpdateTexture(tex, NULL, surf->comb, pitch);
 }

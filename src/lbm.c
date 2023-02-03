@@ -20,9 +20,9 @@ typedef struct
 
 	LbmChunkMask    chunkMask;
 	LbmBitmapHeader bmhd;
-	Colour          cmap[LBM_PAL_SIZE];
+	Color          cmap[LBM_PAL_SIZE];
 	unsigned        numCmap;
-	LbmColourRange  crng[LBM_MAX_CRNG];
+	LbmColorRange  crng[LBM_MAX_CRNG];
 	unsigned        numCrng;
 	uint8_t*        body;
 	unsigned        bodyLen;
@@ -80,7 +80,7 @@ static int lbmReadBitmapHeader(LbmReaderState* s, const IffChunkHeader* chunk)
 	IO_READ_UBYTE(bmhd->masking);
 	IO_READ_UBYTE(bmhd->compression);
 	IO_READ_UBYTE(bmhd->pad1);
-	IO_READ_UWORD(bmhd->transparentColour);
+	IO_READ_UWORD(bmhd->transparentColor);
 	IO_READ_UBYTE(bmhd->xAspect);
 	IO_READ_UBYTE(bmhd->yAspect);
 	IO_READ_WORD( bmhd->pageWidth);
@@ -97,7 +97,7 @@ static int lbmReadBitmapHeader(LbmReaderState* s, const IffChunkHeader* chunk)
 	return 0;
 }
 
-static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
+static int lbmReadColorMap(LbmReaderState* s, const IffChunkHeader* chunk)
 {
 	// Needs to be after header, only allowed once
 	if (s->chunkMask & CHUNK_CMAP || !(s->chunkMask & CHUNK_BMHD))
@@ -111,7 +111,7 @@ static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
 	{
 		uint8_t triplet[3];
 		IO_READ(triplet, 3);
-		s->cmap[i] = MAKE_COLOUR(triplet[0], triplet[1], triplet[2], 0xFF);
+		s->cmap[i] = MAKE_COLOR(triplet[0], triplet[1], triplet[2], 0xFF);
 	}
 
 	s->chunkMask |= CHUNK_CMAP;
@@ -122,7 +122,7 @@ static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
 	return 0;
 }
 
-static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
+static int lbmReadColorRange(LbmReaderState* s, const IffChunkHeader* chunk)
 {
 	// Must be after header
 	if (!(s->chunkMask & CHUNK_BMHD))
@@ -132,7 +132,7 @@ static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
 	if (s->numCrng == LBM_MAX_CRNG)
 		return -1;
 
-	LbmColourRange crng;
+	LbmColorRange crng;
 	IO_READ_WORD( crng.pad1);
 	IO_READ_WORD( crng.rate);
 	IO_READ_WORD( crng.flags);
@@ -278,7 +278,7 @@ static size_t lbmReadIlbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t
 
 		// Fill underread
 		if (prowRead < pixStride)
-			memset(&pixRow[prowRead], 0, prowRead - pixStride); //TODO: fill with "transparent" colour?
+			memset(&pixRow[prowRead], 0, prowRead - pixStride); //TODO: fill with "transparent" color?
 
 		pixRow += pixStride;
 	}
@@ -348,8 +348,8 @@ static int lbmReadSections(LbmReaderState* s)
 		switch (chunk.chunkId)
 		{
 		case (IFF_BMHD): if (lbmReadBitmapHeader(s, &chunk)) return -1; break;
-		case (IFF_CMAP): if (lbmReadColourMap(s, &chunk)) return -1; break;
-		case (IFF_CRNG): if (lbmReadColourRange(s, &chunk)) return -1; break;
+		case (IFF_CMAP): if (lbmReadColorMap(s, &chunk)) return -1; break;
+		case (IFF_CRNG): if (lbmReadColorRange(s, &chunk)) return -1; break;
 		case (IFF_BODY): if (lbmReadBody(s, &chunk)) return -1; break;
 		default:
 			if (s->customSub && s->customHndl && s->customSub(chunk.chunkId))
@@ -415,22 +415,22 @@ int lbmLoad(Lbm* out)
 
 	// Copy palette
 	if (s.numCmap > 0)
-		memcpy(out->palette, s.cmap, s.numCmap * sizeof(Colour));
+		memcpy(out->palette, s.cmap, s.numCmap * sizeof(Color));
 
 	// Default palette for missing or short palette
 	if (s.numCmap < LBM_PAL_SIZE)
 	{
-		const Colour* defaultPal = lbmPbmDefaultPal;
+		const Color* defaultPal = lbmPbmDefaultPal;
 		if (s.formatId == IFF_ILBM)
 			defaultPal = lbmIlbmDefaultPal;
 
 		unsigned copyNum = LBM_PAL_SIZE - s.numCmap;
-		memcpy(&out->palette[s.numCmap], &defaultPal[s.numCmap], copyNum * sizeof(Colour));
+		memcpy(&out->palette[s.numCmap], &defaultPal[s.numCmap], copyNum * sizeof(Color));
 	}
 
 	for (unsigned i = 0; i < s.numCrng; ++i)
 	{
-		const LbmColourRange* crng = &s.crng[i];
+		const LbmColorRange* crng = &s.crng[i];
 		out->rangeLow[i]  = crng->low;
 		out->rangeHigh[i] = crng->high;
 		out->rangeRate[i] = crng->rate;

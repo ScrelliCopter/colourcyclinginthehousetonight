@@ -19,7 +19,7 @@ typedef struct
 } IffChunkHeader;
 
 typedef uint8_t LbmMask;
-enum { MSK_NONE, MSK_HAS_MASK, MSK_HAS_TRANSPARENT_COLOUR, MSK_LASSO, NUM_MSK };
+enum { MSK_NONE, MSK_HAS_MASK, MSK_HAS_TRANSPARENT_COLOR, MSK_LASSO, NUM_MSK };
 
 typedef uint8_t LbmCompression;
 enum { CMP_NONE, CMP_BYTE_RUN1, NUM_CMP };
@@ -32,7 +32,7 @@ typedef struct
 	LbmMask        masking;
 	LbmCompression compression;
 	uint8_t        pad1;
-	uint16_t       transparentColour;
+	uint16_t       transparentColor;
 	uint8_t        xAspect, yAspect;
 	int16_t        pageWidth, pageHeight;
 } LbmBitmapHeader;
@@ -47,7 +47,7 @@ typedef struct
 	int16_t   rate;
 	CrngFlags flags;
 	uint8_t   low, high;
-} LbmColourRange;
+} LbmColorRange;
 #define CRNG_SIZE 8
 
 #endif//LBMDEF_H

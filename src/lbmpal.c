@@ -3,7 +3,7 @@
 
 // Deluxe Paint Animation (MS-DOS)
 // Deluxe Paint II Enhanced (MS-DOS)
-const Colour lbmPbmDefaultPal[256] =
+const Color lbmPbmDefaultPal[256] =
 {
 	MAKE_RGB(0x00, 0x00, 0x00),
 	MAKE_RGB(0x00, 0x00, 0xAA),
@@ -264,7 +264,7 @@ const Colour lbmPbmDefaultPal[256] =
 };
 
 // Deluxe Paint II (MS-DOS)
-const Colour lbmIlbmDosDefaultPal[256] =
+const Color lbmIlbmDosDefaultPal[256] =
 {
 	MAKE_RGB(0x00, 0x00, 0x00),
 	MAKE_RGB(0x00, 0x00, 0xAA),
@@ -525,7 +525,7 @@ const Colour lbmIlbmDosDefaultPal[256] =
 };
 
 // Deluxe Paint V (Amiga)
-const Colour lbmIlbmDefaultPal[256] =
+const Color lbmIlbmDefaultPal[256] =
 {
 	MAKE_RGB(0x00, 0x00, 0x00),
 	MAKE_RGB(0xA0, 0xA0, 0xA0),

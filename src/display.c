@@ -153,8 +153,8 @@ static void drawPalette(Display* d, int size)
 			(int)(i & 0xF) * size,
 			(int)(i >> 4) * size,
 			size, size };
-		Colour c = d->surf.pal[i];
-		SDL_SetRenderDrawColor(d->rend, COLOUR_R(c), COLOUR_G(c), COLOUR_B(c), COLOUR_A(c));
+		Color c = d->surf.pal[i];
+		SDL_SetRenderDrawColor(d->rend, COLOR_R(c), COLOR_G(c), COLOR_B(c), COLOR_A(c));
 		SDL_RenderFillRect(d->rend, &dst);
 	}
 }
@@ -165,9 +165,9 @@ static void drawSpans(Display* d)
 		return;
 
 	// Save current renderer state
-	SDL_Colour oldColour;
+	SDL_Color oldColor;
 	SDL_BlendMode oldMode;
-	SDL_GetRenderDrawColor(d->rend, &oldColour.r, &oldColour.g, &oldColour.b, &oldColour.a);
+	SDL_GetRenderDrawColor(d->rend, &oldColor.r, &oldColor.g, &oldColor.b, &oldColor.a);
 	SDL_GetRenderDrawBlendMode(d->rend, &oldMode);
 
 	// Alpha blend spans over scene
@@ -211,7 +211,7 @@ static void drawSpans(Display* d)
 	}
 
 	// Restore previous render state
-	SDL_SetRenderDrawColor(d->rend, oldColour.r, oldColour.g, oldColour.b, oldColour.a);
+	SDL_SetRenderDrawColor(d->rend, oldColor.r, oldColor.g, oldColor.b, oldColor.a);
 	SDL_SetRenderDrawBlendMode(d->rend, oldMode);
 }
 

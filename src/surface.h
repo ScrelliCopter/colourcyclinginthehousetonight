@@ -9,10 +9,10 @@ typedef struct
 {
 	int w, h;
 
-	Colour    srcPal[LBM_PAL_SIZE];
-	Colour    pal[LBM_PAL_SIZE];
+	Color    srcPal[LBM_PAL_SIZE];
+	Color    pal[LBM_PAL_SIZE];
 	uint8_t*  srcPix;
-	Colour*   comb;
+	Color*   comb;
 	SurfSpan* spans;
 	int       spanBufLen;
 	int       spanBeg;
@@ -29,7 +29,7 @@ typedef struct
 int surfaceInit(Surface* surf,
 	int w, int h,
 	const uint8_t* pix,
-	const Colour pal[]);
+	const Color pal[]);
 
 void surfaceFree(Surface* surf);
 
