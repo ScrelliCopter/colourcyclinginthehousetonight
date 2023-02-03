@@ -181,3 +181,18 @@ void audioClose(void)
 		vorbin = NULL;
 	}
 }
+
+
+int audioIsOpen(void)
+{
+	if (dev > 0 && vorbin)
+		return 1;
+	return 0;
+}
+
+int audioIsPlaying(void)
+{
+	if (audioIsOpen() && SDL_GetAudioDeviceStatus(dev) == SDL_AUDIO_PLAYING)
+		return 1;
+	return 0;
+}

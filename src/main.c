@@ -94,10 +94,15 @@ static Display* display = NULL;
 
 static bool quit     = false;
 static bool realtime = false;
-static int speed  = 2;
 
-static int init(const char* lbmPath)
+static int speed = 2;
+
+static void playAudio(void);
+
+//FIXME: this has awful behaviour on load failure
+static int reset(const char* lbmPath)
 {
+	// Open LBM
 	Lbm lbm = LBM_CLEAR();
 	FILE* file = fopen(lbmPath, "rb");
 	if (!file)
@@ -105,33 +110,59 @@ static int init(const char* lbmPath)
 	lbm.iocb = LBM_IO_DEFAULT(file);
 	lbm.customSub = customSubscriber;
 	lbm.customHndl = customHandler;
-	if (!file || lbmLoad(&lbm))
+
+	if (audioIsOpen())
+		audioClose();
+	STR_FREE(audioPath);
+	BUF_FREE(oggv);
+	STR_FREE(title);
+
+	if (lbmLoad(&lbm))
 	{
 		lbmFree(&lbm);
 		return 1;
 	}
 
-	const int winpos = SDL_WINDOWPOS_UNDEFINED;
-	const int winflg = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
-	const char* wintitle = title.ptr ? title.ptr : "Untitled";
-	//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-	win = SDL_CreateWindow(wintitle, winpos, winpos, lbm.w, lbm.h, winflg);
-	rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
-	if (!win || !rend)
+	const char* wintitle = STR_EMPTY(title) ? "Untitled" : title.ptr;
+	if (!win)
 	{
-		lbmFree(&lbm);
-		return -1;
+		// Create window if it doesn't exist
+		const int winpos = SDL_WINDOWPOS_UNDEFINED;
+		const int winflg = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
+		//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+		win = SDL_CreateWindow(wintitle, winpos, winpos, lbm.w, lbm.h, winflg);
+		rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
+		if (!win || !rend)
+		{
+			lbmFree(&lbm);
+			return -1;
+		}
+	}
+	else
+	{
+		SDL_SetWindowTitle(win, wintitle);
+		SDL_SetWindowSize(win, lbm.w, lbm.h);
 	}
 
-	display = displayInit(rend, &lbm, precompSpans.ptr, precompSpans.len);
+	// Setup display
+	if (!display)
+		display = displayInit(rend, &lbm, precompSpans.ptr, precompSpans.len);
+	else
+		displayReset(display, &lbm, precompSpans.ptr, precompSpans.len);
 	lbmFree(&lbm);
 	if (!display)
+	{
+		quit = true;
 		return -1;
+	}
+	BUF_FREE(precompSpans);
 
+	playAudio();
+	realtime = (!BUF_EMPTY(precompSpans) || displayHasAnimation(display)) ? true : false;
 	return 0;
 }
 
-static void playAudio(void)
+void playAudio(void)
 {
 	// Play embedded or linked audio file
 	if ((!BUF_EMPTY(oggv) || !STR_EMPTY(audioPath)) && !audioInit(win))
@@ -153,7 +184,7 @@ static void playAudio(void)
 	}
 }
 
-static void freeResources(void)
+static void deinit(void)
 {
 	audioClose();
 	STR_FREE(audioPath);
@@ -196,6 +227,12 @@ static void handleEvent(const SDL_Event* event)
 		else if (event->window.event == SDL_WINDOWEVENT_EXPOSED && !realtime)
 			displayDamage(display);
 	}
+	else if (event->type == SDL_DROPFILE)
+	{
+		char* file = event->drop.file;
+		reset(file);
+		SDL_free(file);
+	}
 }
 
 int main(int argc, char** argv)
@@ -206,13 +243,11 @@ int main(int argc, char** argv)
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 		return 1;
 
-	if (init(argv[1]))
+	if (reset(argv[1]))
 	{
-		freeResources();
+		deinit();
 		return 1;
 	}
-
-	playAudio();
 
 	const double perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
 	Uint64 tick = SDL_GetPerformanceCounter();
@@ -239,6 +274,6 @@ int main(int argc, char** argv)
 		displayRepaint(display);
 	}
 
-	freeResources();
+	deinit();
 	return 0;
 }

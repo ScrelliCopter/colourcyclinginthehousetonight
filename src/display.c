@@ -42,6 +42,26 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 	if (!d)
 		return NULL;
 
+	(*d) = (Display)
+	{
+		.rend = renderer,
+
+		.surf       = SURFACE_CLEAR(),
+		.surfTex    = NULL,
+		.surfDamage = true,
+		.numRange   = 0U,
+
+		// Set by displayResize()
+		.surfRect = { 0, 0, 0, 0 },
+		.srcAspect = 0.0,
+		.scrW = 0, .scrH = 0,
+
+		.cycleMethod = 1,
+		.spanView = false,
+		.palView  = false,
+		.repaint  = false
+	};
+
 	d->rend = renderer;
 	if (displayReset(d, lbm, precompSpans, precompSpansLen))
 	{
@@ -52,12 +72,17 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 	return d;
 }
 
+static void freeResources(Display* d)
+{
+	SDL_DestroyTexture(d->surfTex);
+	surfaceFree(&d->surf);
+}
+
 void displayFree(Display* d)
 {
 	if (!d)
 		return;
-	SDL_DestroyTexture(d->surfTex);
-	surfaceFree(&d->surf);
+	freeResources(d);
 	SDL_free(d);
 }
 
@@ -66,25 +91,7 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, uint32_t 
 	if (!d || !lbm)
 		return -1;
 
-	SDL_Renderer* renderer = d->rend;
-	(*d) = (Display)
-	{
-		.rend = renderer,
-
-		.surf       = SURFACE_CLEAR(),
-		.surfTex    = NULL,
-		.surfDamage = true,
-		.surfRect   = { 0, 0, 0, 0 },
-		.numRange   = 0U,
-
-		.srcAspect = 0.0,
-		.scrW = 0, .scrH = 0,
-
-		.cycleMethod = 1,
-		.spanView = false,
-		.palView = false,
-		.repaint = true
-	};
+	freeResources(d);
 
 	// Create surface
 	if (surfaceInit(&d->surf, lbm->w, lbm->h, lbm->pixels, lbm->palette))
@@ -118,6 +125,7 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, uint32_t 
 		d->cyclePos[i]     = 0;
 	}
 
+	displayDamage(d);
 	return 0;
 }
 
