@@ -1,0 +1,16 @@
+# Top level editorconfig
+root = true
+
+[*.{c,h,py}]
+# Unix newlines
+end_of_line = lf
+insert_final_newline = true
+
+# UTF-8 Encoding
+charset = utf-8
+
+# Whitespace/indentation settings
+tab_width = 4
+indent_style = tab
+indent_size = tab
+trim_trailing_whitespace = true
