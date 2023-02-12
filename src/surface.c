@@ -316,7 +316,7 @@ int surfaceLoadSpans(Surface* surf, const void* chunk, size_t size)
 	}
 
 	surf->spanBeg = startOfs;
-	surf->spanEnd = startOfs + spanLen;
+	surf->spanEnd = startOfs + spanLen - 1;
 	return 0;
 }
 
@@ -345,7 +345,7 @@ void surfaceCombinePartial(Surface* surf)
 	const uint8_t* srcPix = surf->srcPix + surf->spanBeg * surf->w;
 	Colour* dst = surf->comb + surf->spanBeg * surf->w;
 
-	int numSpans = MIN(surf->h, surf->spanEnd + 1 - surf->spanBeg);
+	int numSpans = MIN(surf->h, surf->spanEnd + 1) - surf->spanBeg;
 	for (int i = 0; i < numSpans; ++i)
 	{
 		SurfSpan span = surf->spans[i];
