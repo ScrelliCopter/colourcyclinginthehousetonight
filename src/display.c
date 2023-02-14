@@ -290,11 +290,18 @@ void displayRepaint(Display* d)
 	else if (d->cycleMethod == 1)
 	{
 		for (unsigned i = 0; i < d->numRange; ++i)
-			surfaceRangeLinear(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
+			surfaceRangeSrgb(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 	}
 	else if (d->cycleMethod == 2)
+	{
+		for (unsigned i = 0; i < d->numRange; ++i)
+			surfaceRangeLinear(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
+				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+		d->surfDamage = true;
+	}
+	else if (d->cycleMethod == 3)
 	{
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeHsluv(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
@@ -344,7 +351,7 @@ void displayCycleBlendMethod(Display* d)
 {
 	if (!d)
 		return;
-	d->cycleMethod = (d->cycleMethod + 1) % 3;
+	d->cycleMethod = (d->cycleMethod + 1) % 4;
 	if (d->cycleMethod == 0)
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRange(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i]);

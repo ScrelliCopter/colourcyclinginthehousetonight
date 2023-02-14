@@ -37,6 +37,7 @@ void surfacePalShiftRight(Surface* surf, uint8_t hi, uint8_t low);
 void surfacePalShiftLeft(Surface* surf, uint8_t hi, uint8_t low);
 
 void surfaceRange(Surface* surf, uint8_t hi, uint8_t low, int cycle);
+void surfaceRangeSrgb(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 

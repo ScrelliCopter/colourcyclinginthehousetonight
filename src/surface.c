@@ -85,7 +85,7 @@ void surfaceRange(Surface* surf, uint8_t hi, uint8_t low, int cycle)
 		surf->pal[low + j] = surf->srcPal[((j + frame) % range + low) & 0xFF];
 }
 
-void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween)
+void surfaceRangeSrgb(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween)
 {
 	if (!surf || low >= hi)
 		return;
@@ -109,6 +109,55 @@ void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, doubl
 			(uint8_t)LERP((double)COLOUR_G(old8), (double)COLOUR_G(new8), tween),
 			(uint8_t)LERP((double)COLOUR_B(old8), (double)COLOUR_B(new8), tween),
 			(uint8_t)LERP((double)COLOUR_A(old8), (double)COLOUR_A(new8), tween));
+	}
+}
+
+static inline double srgbFromLinear(double x)
+{
+	return (x < 0.0031308)
+		? x * 12.92
+		: 1.055 * pow(x, 1.0 / 2.4) - 0.055;
+}
+
+static inline double linearFromSrgb(double x)
+{
+	return (x < 0.04045)
+		? x / 12.92
+		: pow((x + 0.055) / 1.055, 2.4);
+}
+
+void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween)
+{
+	if (!surf || low >= hi)
+		return;
+
+	uint8_t range = ++hi - low;
+	double rateTime = efmod((double)cycle + tween, range);
+	unsigned frame = (unsigned)rateTime;
+	tween = rateTime - (double)frame;
+
+	const Colour* src = surf->srcPal;
+	Colour* dst = surf->pal;
+	for (unsigned j = 0; j < range; ++j)
+	{
+		unsigned oldIdx = low + (j + frame) % range;
+		unsigned newIdx = low + (j + frame + 1) % range;
+		Colour old8 = src[oldIdx & 0xFF];
+		Colour new8 = src[newIdx & 0xFF];
+
+		dst[low + j] = MAKE_COLOUR(
+			(uint8_t)(srgbFromLinear(LERP(
+				linearFromSrgb((double)COLOUR_R(old8) / 255.0),
+				linearFromSrgb((double)COLOUR_R(new8) / 255.0), tween)) * 255.0),
+			(uint8_t)(srgbFromLinear(LERP(
+				linearFromSrgb((double)COLOUR_G(old8) / 255.0),
+				linearFromSrgb((double)COLOUR_G(new8) / 255.0), tween)) * 255.0),
+			(uint8_t)(srgbFromLinear(LERP(
+				linearFromSrgb((double)COLOUR_B(old8) / 255.0),
+				linearFromSrgb((double)COLOUR_B(new8) / 255.0), tween)) * 255.0),
+			(uint8_t)(srgbFromLinear(LERP(
+				linearFromSrgb((double)COLOUR_A(old8) / 255.0),
+				linearFromSrgb((double)COLOUR_A(new8) / 255.0), tween)) * 255.0));
 	}
 }
 
