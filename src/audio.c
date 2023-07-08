@@ -112,7 +112,7 @@ static int openDevice(const stb_vorbis_info* vorbNfo)
 		.format   = AUDIO_S16,
 
 		.freq     = (int)vorbNfo->sample_rate,
-		.channels = vorbNfo->channels
+		.channels = (Uint8)vorbNfo->channels
 	};
 	dev = SDL_OpenAudioDevice(NULL, 0, &wantSpec, &spec, 1);
 	if (dev == 0)
@@ -147,13 +147,13 @@ int audioPlayFile(const char* oggPath, uint8_t volume)
 	return 0;
 }
 
-int audioPlayMemory(const void* oggv, uint32_t oggvLen, uint8_t volume)
+int audioPlayMemory(const void* oggv, int oggvLen, uint8_t volume)
 {
 	if (!oggv)
 		return -1;
 
 	int err = VORBIS__no_error;
-	vorbin = stb_vorbis_open_memory(oggv, (int)oggvLen, &err, NULL);
+	vorbin = stb_vorbis_open_memory(oggv, oggvLen, &err, NULL);
 	if (err != VORBIS__no_error)
 	{
 		printVorbisError("audioInit", err);

@@ -58,10 +58,12 @@ static int customHandler(uint32_t fourcc, uint32_t size, uint8_t* chunk)
 		++chunk;
 		if (audioLen)
 		{
+MSVC_NOWARN(4295)
 			#define AUDIO_PREFIX_LEN 6
 			static const char audioPrefix[AUDIO_PREFIX_LEN] = "audio/";
 			#define AUDIO_SUFFIX_LEN 4
 			static const char audioSuffix[AUDIO_SUFFIX_LEN] = ".ogg";
+MSVC_ENDNOWARN()
 
 			audioPath = STR_ALLOC(AUDIO_PREFIX_LEN + (size_t)audioLen + AUDIO_SUFFIX_LEN);
 			SDL_memcpy(audioPath.ptr, audioPrefix, AUDIO_PREFIX_LEN);
@@ -171,7 +173,7 @@ void playAudio(void)
 		if (!BUF_EMPTY(oggv))
 		{
 			// Try playing embedded ogg if found
-			if (audioPlayMemory(oggv.ptr, oggv.len, volume))
+			if (audioPlayMemory(oggv.ptr, (int)oggv.len, volume))
 				BUF_FREE(oggv);
 		}
 		// Try playing linked audio

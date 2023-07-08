@@ -31,11 +31,12 @@ target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_FTELLO}>:HAVE_FTELLO>
 	$<$<BOOL:${HAVE_FSEEKO}>:HAVE_FSEEKO>
 	$<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
-	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>)
+	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>
+	$<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
 target_link_libraries(${NAME}
 	$<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
 	SDL2::SDL2
 	$<$<C_COMPILER_ID:Clang,GNU>:m>)
 target_compile_options(${NAME} PRIVATE
 	$<$<C_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -pedantic -Wno-unused-parameter>
-	$<$<C_COMPILER_ID:MSVC>:/W4>)
+	$<$<C_COMPILER_ID:MSVC>:/W4 /wd4100>)

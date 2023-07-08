@@ -34,7 +34,7 @@ struct Display
 
 static void recalcDisplayRect(Display* d, int w, int h, double aspect);
 
-Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precompSpans, uint32_t precompSpansLen)
+Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen)
 {
 	if (!renderer || !lbm)
 		return NULL;
@@ -87,7 +87,7 @@ void displayFree(Display* d)
 	SDL_free(d);
 }
 
-int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, uint32_t precompSpansLen)
+int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen)
 {
 	if (!d || !lbm)
 		return -1;

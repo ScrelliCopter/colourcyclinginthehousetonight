@@ -8,9 +8,9 @@ typedef struct Display Display;
 
 typedef struct SDL_Renderer SDL_Renderer;
 
-Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precompSpans, uint32_t precompSpansLen);
+Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen);
 void displayFree(Display* d);
-int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, uint32_t precompSpansLen);
+int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen);
 
 int displayHasAnimation(const Display* d);
 

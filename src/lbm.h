@@ -65,10 +65,10 @@ typedef uint32_t Colour;
 	(COLOUR_AMASK & ((Colour)(A) << COLOUR_ASHIFT)))
 #define MAKE_RGB(R, G, B) MAKE_COLOUR((R), (G), (B), 0xFF)
 
-#define COLOUR_R(C) (((C) & COLOUR_RMASK) >> COLOUR_RSHIFT)
-#define COLOUR_G(C) (((C) & COLOUR_GMASK) >> COLOUR_GSHIFT)
-#define COLOUR_B(C) (((C) & COLOUR_BMASK) >> COLOUR_BSHIFT)
-#define COLOUR_A(C) (((C) & COLOUR_AMASK) >> COLOUR_ASHIFT)
+#define COLOUR_R(C) ((uint8_t)(((C) & COLOUR_RMASK) >> COLOUR_RSHIFT))
+#define COLOUR_G(C) ((uint8_t)(((C) & COLOUR_GMASK) >> COLOUR_GSHIFT))
+#define COLOUR_B(C) ((uint8_t)(((C) & COLOUR_BMASK) >> COLOUR_BSHIFT))
+#define COLOUR_A(C) ((uint8_t)(((C) & COLOUR_AMASK) >> COLOUR_ASHIFT))
 
 #define LBM_PAL_SIZE 256
 #define LBM_MAX_CRNG  16

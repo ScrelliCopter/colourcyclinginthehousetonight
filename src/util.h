@@ -106,4 +106,30 @@ typedef struct { char* ptr; size_t len; } SizedStr;
 #define STR_EMPTY(B) (!(B).ptr || !(B).len)
 #define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedStr)STR_CLEAR())
 
+// Disable warnings
+
+#define WRAP_PRAGMA(X) _Pragma(#X)
+#if defined(__GNUC__) || defined(__clang__)
+  #define GCC_NOWARN(X) \
+    WRAP_PRAGMA(GCC diagnostic push) \
+    WRAP_PRAGMA(GCC diagnostic ignored #X)
+  #define GCC_ENDNOWARN() \
+    WRAP_PRAGMA(GCC diagnostic pop)
+  #define MSVC_NOWARN(X)
+  #define MSVC_ENDNOWARN()
+#elif defined(_MSC_VER)
+  #define GCC_NOWARN(X)
+  #define GCC_ENDNOWARN()
+  #define MSVC_NOWARN(X) \
+    WRAP_PRAGMA(warning(push)) \
+    WRAP_PRAGMA(warning(disable:##X##))
+  #define MSVC_ENDNOWARN() \
+    WRAP_PRAGMA(warning(pop))
+#else
+  #define GCC_NOWARN(X)
+  #define GCC_ENDNOWARN()
+  #define MSVC_NOWARN(X)
+  #define MSVC_ENDNOWARN()
+#endif
+
 #endif//UTIL_H

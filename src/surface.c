@@ -188,7 +188,7 @@ void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double
 		double h = DEGLERP(oldH, newH, tween), s = LERP(oldS, newS, tween), v = LERP(oldL, newL, tween);
 		double r, g, b;
 		hsluv2rgb(h, s, v, &r, &g, &b);
-		uint8_t a = LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
+		uint8_t a = (uint8_t)LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
 		dst[low + j] = MAKE_COLOUR((uint8_t)(r * 255.0), (uint8_t)(g * 255.0), (uint8_t)(b * 255.0), a);
 	}
 }

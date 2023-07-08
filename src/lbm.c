@@ -256,6 +256,7 @@ static size_t lbmReadIlbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t
 		{
 			--shift;
 			uint8_t c = 0;
+GCC_NOWARN(-Wimplicit-fallthrough)
 			switch (numPlanes)
 			{
 			case 8: c |= ((irow[byte + planeStride * 7] >> shift) & 0x1) << 7;
@@ -267,6 +268,7 @@ static size_t lbmReadIlbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t
 			case 2: c |= ((irow[byte + planeStride] >> shift) & 0x1) << 1;
 			case 1: c |= (irow[byte] >> shift) & 0x1;
 			}
+GCC_ENDNOWARN()
 			pixRow[i] = c;
 
 			if (shift == 0)
