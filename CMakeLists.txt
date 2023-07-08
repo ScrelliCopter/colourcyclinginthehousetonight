@@ -16,7 +16,7 @@ if (NOT MSVC)
 endif()
 
 set(SOURCES
-	src/hsluv.c src/hsluv.c
+	src/hsluv.c src/hsluv.h
 	src/stb_vorbis.h
 	src/util.h
 	src/lbmio.c src/lbmpal.c src/lbmdef.h
