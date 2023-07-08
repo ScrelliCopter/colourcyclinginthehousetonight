@@ -178,11 +178,7 @@ void playAudio(void)
 		if (BUF_EMPTY(oggv) && audioPath.ptr)
 			audioPlayFile(audioPath.ptr, volume);
 	}
-	if (audioPath.ptr)
-	{
-		SDL_free(audioPath.ptr);
-		audioPath.ptr = NULL;
-	}
+	STR_FREE(audioPath);
 }
 
 static void deinit(void)
