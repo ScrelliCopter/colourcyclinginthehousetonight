@@ -244,8 +244,8 @@ void recalcDisplayRect(Display* d, int w, int h, double aspect)
 }
 
 
-static const uint16_t cycleMod = 0x4000;
-static const double rateScale = (1.0 / (double)cycleMod);
+#define CYCLE_MOD 0x4000
+static const double rateScale = (1.0 / (double)CYCLE_MOD);
 
 void displayUpdateTimer(Display* d, double delta)
 {
@@ -259,9 +259,9 @@ void displayUpdateTimer(Display* d, double delta)
 		uint8_t range = d->rangeHigh[i] + 1 - d->rangeLow[i];
 
 		d->cycleTimers[i] += (float)(rate * 60.0 * delta);
-		if (d->cycleTimers[i] >= (float)cycleMod)
+		if (d->cycleTimers[i] >= (float)CYCLE_MOD)
 		{
-			d->cycleTimers[i] = efmodf(d->cycleTimers[i], cycleMod);
+			d->cycleTimers[i] = efmodf(d->cycleTimers[i], CYCLE_MOD);
 			bool dir = d->rangeRate[i] == (int16_t)rate;
 			d->cyclePos[i] = (uint8_t)emod(d->cyclePos[i] + (dir ? -1 : 1), range);
 			d->rangeTrigger[i] = true;

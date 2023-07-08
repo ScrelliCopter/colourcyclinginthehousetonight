@@ -94,16 +94,16 @@ static inline float FORCE_INLINE efmodf(float x, float d) { float r = fmodf(x, d
 typedef struct { void* ptr; size_t len; } SizedBuf;
 
 #define BUF_SIZED(P, S) (SizedBuf){ (void*)(P), (S) }
-#define BUF_CLEAR() (SizedBuf){ NULL, 0U }
+#define BUF_CLEAR() { NULL, 0U }
 #define BUF_EMPTY(B) (!(B).ptr)
-#define BUF_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : BUF_CLEAR())
+#define BUF_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedBuf)BUF_CLEAR())
 
 typedef struct { char* ptr; size_t len; } SizedStr;
 
 #define STR_SIZED(S, L) (SizedStr){ (S), (L) }
 #define STR_ALLOC(L) STR_SIZED(malloc((L) + 1), (L))
-#define STR_CLEAR() (SizedStr){ NULL, 0U }
+#define STR_CLEAR() { NULL, 0U }
 #define STR_EMPTY(B) (!(B).ptr || !(B).len)
-#define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : STR_CLEAR())
+#define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedStr)STR_CLEAR())
 
 #endif//UTIL_H
