@@ -308,6 +308,13 @@ void displayRepaint(Display* d)
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 	}
+	else if (d->cycleMethod == 4)
+	{
+		for (unsigned i = 0; i < d->numRange; ++i)
+			surfaceRangeLab(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
+				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+		d->surfDamage = true;
+	}
 
 	// Animate image with palette
 	if (d->surfDamage)
@@ -351,7 +358,7 @@ void displayCycleBlendMethod(Display* d)
 {
 	if (!d)
 		return;
-	d->cycleMethod = (d->cycleMethod + 1) % 4;
+	d->cycleMethod = (d->cycleMethod + 1) % 5;
 	if (d->cycleMethod == 0)
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRange(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i]);

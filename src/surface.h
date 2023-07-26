@@ -40,6 +40,7 @@ void surfaceRange(Surface* surf, uint8_t hi, uint8_t low, int cycle);
 void surfaceRangeSrgb(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 void surfaceRangeLinear(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
+void surfaceRangeLab(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween);
 
 int surfaceComputeSpans(Surface* surf,
 	const uint8_t hi[], const uint8_t low[],

@@ -193,6 +193,76 @@ void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double
 	}
 }
 
+#define LAB_WHITE_REF_X (095.047 / 100.0)
+#define LAB_WHITE_REF_Y (100.000 / 100.0)
+#define LAB_WHITE_REF_Z (108.883 / 100.0)
+
+static void labFromRgb(double* oL, double* oA, double* oB, double r, double g, double b)
+{
+	if (!oL || !oA || !oB)
+		return;
+
+	r = linearFromSrgb(r), g = linearFromSrgb(g), b = linearFromSrgb(b);
+
+#define GAMMA(V) (((V) > 0.008856) ? pow((V), 1.0 / 3.0) : (7.787 * (V)) + (16.0 / 116.0))
+	double x = GAMMA((r * 0.4124 + g * 0.3576 + b * 0.1805) / LAB_WHITE_REF_X);
+	double y = GAMMA((r * 0.2126 + g * 0.7152 + b * 0.0722) / LAB_WHITE_REF_Y);
+	double z = GAMMA((r * 0.0193 + g * 0.1192 + b * 0.9505) / LAB_WHITE_REF_Z);
+
+	*oL = (116.0 * y) - 16.0;
+	*oA = 500.0 * (x - y);
+	*oB = 200.0 * (y - z);
+}
+
+static void rgbFromLab(double* oR, double* oG, double* oB, double l, double a, double b)
+{
+	if (!oR || !oG || !oB)
+		return;
+
+	double y = (l + 16.0) / 116.0;
+	double x = y + a / 500.0;
+	double z = y - b / 200.0;
+
+#define UNGAM(V) (((V) * (V) * (V) > 0.008856) ? (V) * (V) * (V) : ((V) - 16.0 / 116.0) / 7.787)
+	x = UNGAM(x) * LAB_WHITE_REF_X, y = UNGAM(y) * LAB_WHITE_REF_Y, z = UNGAM(z) * LAB_WHITE_REF_Z;
+
+	*oR = srgbFromLinear(x *  3.2406 + y * -1.5372 + z * -0.4986);
+	*oG = srgbFromLinear(x * -0.9689 + y *  1.8758 + z *  0.0415);
+	*oB = srgbFromLinear(x *  0.0557 + y * -0.2040 + z *  1.0570);
+}
+
+void surfaceRangeLab(Surface* surf, uint8_t hi, uint8_t low, int cycle, double tween)
+{
+	if (!surf || low >= hi)
+		return;
+
+	uint8_t range = ++hi - low;
+	double rateTime = efmod((double)cycle + tween, range);
+	unsigned frame = (unsigned)rateTime;
+	tween = rateTime - (double)frame;
+
+	const Colour* src = surf->srcPal;
+	Colour* dst = surf->pal;
+	for (unsigned j = 0; j < range; ++j)
+	{
+		unsigned oldIdx = low + (j + frame) % range;
+		unsigned newIdx = low + (j + frame + 1) % range;
+		Colour old8 = src[oldIdx & 0xFF];
+		Colour new8 = src[newIdx & 0xFF];
+
+		double oldL, oldA, oldB, newL, newA, newB;
+		labFromRgb(&oldL, &oldA, &oldB, COLOUR_R(old8) / 255.0, COLOUR_G(old8) / 255.0, COLOUR_B(old8) / 255.0);
+		labFromRgb(&newL, &newA, &newB, COLOUR_R(new8) / 255.0, COLOUR_G(new8) / 255.0, COLOUR_B(new8) / 255.0);
+		double r, g, b, a = LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
+		rgbFromLab(&r, &g, &b, LERP(oldL, newL, tween), LERP(oldA, newA, tween), LERP(oldB, newB, tween));
+		dst[low + j] = MAKE_COLOUR(
+			(uint8_t)(r * 255.0),
+			(uint8_t)(g * 255.0),
+			(uint8_t)(b * 255.0),
+			(uint8_t)(a * 255.0));
+	}
+}
+
 static int resizeSpanBuffer(Surface* surf, int len)
 {
 	if (!surf->spans)
