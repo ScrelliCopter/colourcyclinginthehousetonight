@@ -4,40 +4,40 @@
 // Detect endianess
 
 #ifdef HAVE_ARM_ENDIAN_H
-  #include <arm/endian.h>
+# include <arm/endian.h>
 #elif defined(HAVE_ENDIAN_H)
-  #include <endian.h>
-  #define BYTE_ORDER    __BYTE_ORDER
-  #define LITTLE_ENDIAN __LITTLE_ENDIAN
-  #define BIG_ENDIAN    __BIG_ENDIAN
+# include <endian.h>
+# define BYTE_ORDER    __BYTE_ORDER
+# define LITTLE_ENDIAN __LITTLE_ENDIAN
+# define BIG_ENDIAN    __BIG_ENDIAN
 #else
-  #define LITTLE_ENDIAN 1234
-  #define BIG_ENDIAN    4321
-  #if defined(__APPLE__) || defined(_WIN32)
-    #define BYTE_ORDER LITTLE_ENDIAN
-  #else
-    #error Not implemented
-  #endif
+# define LITTLE_ENDIAN 1234
+# define BIG_ENDIAN    4321
+# if defined(__APPLE__) || defined(_WIN32)
+#  define BYTE_ORDER LITTLE_ENDIAN
+# else
+#  error Not implemented
+# endif
 #endif
 
 // Inline control
 
 #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
-  #define FORCE_INLINE __attribute__((always_inline))
+# define FORCE_INLINE __attribute__((always_inline))
 #elif defined(_MSC_VER)
-  #define FORCE_INLINE __forceinline
+# define FORCE_INLINE __forceinline
 #else
-  #define FORCE_INLINE
+# define FORCE_INLINE
 #endif
 
 // Struct packing
 
 #if defined(__GNUC__) || defined(__clang__)
-  #define STRUCT_PACK(NAME) struct __attribute__((__packed__)) NAME
+# define STRUCT_PACK(NAME) struct __attribute__((__packed__)) NAME
 #elif defined(_MSC_VER)
-  #define STRUCT_PACK(NAME) __pragma(pack(push, 1)) struct NAME __pragma(pack(pop))
+# define STRUCT_PACK(NAME) __pragma(pack(push, 1)) struct NAME __pragma(pack(pop))
 #else
-  #define STRUCT_PACK(NAME) struct NAME
+# define STRUCT_PACK(NAME) struct NAME
 #endif
 
 #define WORD_ALIGN(X) ((((X) + 1) >> 1) << 1)
@@ -53,19 +53,17 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v)
 { return (v << 8) | (v >> 8); }
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-  #define SWAP_BE32(V) swap32(V)
-  #define SWAP_BE16(V) swap16(V)
+# define SWAP_BE32(V) swap32(V)
+# define SWAP_BE16(V) swap16(V)
 #else
-  #define SWAP_BE32(V) (V)
-  #define SWAP_BE16(V) (V)
+# define SWAP_BE32(V) (V)
+# define SWAP_BE16(V) (V)
 #endif
 
 #if BYTE_ORDER == BIG_ENDIAN
-  #define FOURCC(A, B, C, D) \
-  (((uint32_t)(D)) | ((uint32_t)(C) << 8) | ((uint32_t)(B) << 16) | ((uint32_t)(A) << 24))
+# define FOURCC(A, B, C, D) (((uint32_t)(D)) | ((uint32_t)(C) << 8) | ((uint32_t)(B) << 16) | ((uint32_t)(A) << 24))
 #else
-  #define FOURCC(A, B, C, D) \
-  (((uint32_t)(A)) | ((uint32_t)(B) << 8) | ((uint32_t)(C) << 16) | ((uint32_t)(D) << 24))
+# define FOURCC(A, B, C, D) (((uint32_t)(A)) | ((uint32_t)(B) << 8) | ((uint32_t)(C) << 16) | ((uint32_t)(D) << 24))
 #endif
 
 // Maths utilities
@@ -110,26 +108,20 @@ typedef struct { char* ptr; size_t len; } SizedStr;
 
 #define WRAP_PRAGMA(X) _Pragma(#X)
 #if defined(__GNUC__) || defined(__clang__)
-  #define GCC_NOWARN(X) \
-    WRAP_PRAGMA(GCC diagnostic push) \
-    WRAP_PRAGMA(GCC diagnostic ignored #X)
-  #define GCC_ENDNOWARN() \
-    WRAP_PRAGMA(GCC diagnostic pop)
-  #define MSVC_NOWARN(X)
-  #define MSVC_ENDNOWARN()
+# define GCC_NOWARN(X) WRAP_PRAGMA(GCC diagnostic push) WRAP_PRAGMA(GCC diagnostic ignored #X)
+# define GCC_ENDNOWARN() WRAP_PRAGMA(GCC diagnostic pop)
+# define MSVC_NOWARN(X)
+# define MSVC_ENDNOWARN()
 #elif defined(_MSC_VER)
-  #define GCC_NOWARN(X)
-  #define GCC_ENDNOWARN()
-  #define MSVC_NOWARN(X) \
-    WRAP_PRAGMA(warning(push)) \
-    WRAP_PRAGMA(warning(disable:##X##))
-  #define MSVC_ENDNOWARN() \
-    WRAP_PRAGMA(warning(pop))
+# define GCC_NOWARN(X)
+# define GCC_ENDNOWARN()
+# define MSVC_NOWARN(X) WRAP_PRAGMA(warning(push)) WRAP_PRAGMA(warning(disable:##X##))
+# define MSVC_ENDNOWARN() WRAP_PRAGMA(warning(pop))
 #else
-  #define GCC_NOWARN(X)
-  #define GCC_ENDNOWARN()
-  #define MSVC_NOWARN(X)
-  #define MSVC_ENDNOWARN()
+# define GCC_NOWARN(X)
+# define GCC_ENDNOWARN()
+# define MSVC_NOWARN(X)
+# define MSVC_ENDNOWARN()
 #endif
 
 #endif//UTIL_H
