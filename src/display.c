@@ -1,6 +1,7 @@
 /* display.c - (C) 2023 a dinosaur (zlib) */
 #include "display.h"
 #include "surface.h"
+#include "text.h"
 #include "util.h"
 #include <SDL.h>
 #include <stdbool.h>
@@ -27,10 +28,17 @@ struct Display
 	float cycleTimers[LBM_MAX_CRNG];
 	uint8_t cyclePos[LBM_MAX_CRNG];
 
-	int cycleMethod;
+	DisplayCycleMethod cycleMethod;
 	bool spanView, palView;
-	bool repaint;
+	bool repaint, hasAnim;
+
+	Font font;
+	const char* text;
+	float textTimer;
 };
+
+#define TEXT_TIME_END  7.0f
+#define TEXT_TIME_FADE 5.0f
 
 static void recalcDisplayRect(Display* d, int w, int h, double aspect);
 
@@ -57,10 +65,19 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 		.srcAspect = 0.0,
 		.scrW = 0, .scrH = 0,
 
-		.cycleMethod = 1,
+		.cycleMethod = DISPLAY_CYCLEMETHOD_SRGB,
 		.spanView = false,
 		.palView  = false,
-		.repaint  = false
+		.repaint  = false,
+		.hasAnim  = false,
+
+		.font = (Font)
+		{
+			.r = renderer,
+			.tex = NULL
+		},
+		.text = NULL,
+		.textTimer = 0.0f
 	};
 
 	d->rend = renderer;
@@ -69,6 +86,8 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 		displayFree(d);
 		return NULL;
 	}
+
+	textCreateFontTexture(&d->font);
 
 	return d;
 }
@@ -84,7 +103,20 @@ void displayFree(Display* d)
 	if (!d)
 		return;
 	freeResources(d);
+	SDL_DestroyTexture(d->font.tex);
 	SDL_free(d);
+}
+
+static bool hasAnimation(const Display* d)
+{
+	if (!d->numRange)
+		return false;
+
+	// Does the image contain any usable ranges?
+	for (unsigned i = 0; i < d->numRange; ++i)
+		if (d->rangeRate[i] && d->rangeHigh[i] > d->rangeLow[i])
+			return true;
+	return false;
 }
 
 int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen)
@@ -102,9 +134,10 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t pr
 	SDL_memcpy(d->rangeHigh, lbm->rangeHigh, sizeof(uint8_t) * LBM_MAX_CRNG);
 	SDL_memcpy(d->rangeRate, lbm->rangeRate, sizeof(int16_t) * LBM_MAX_CRNG);
 	d->numRange = lbm->numRange;
+	d->hasAnim  = hasAnimation(d);
 	if (precompSpans)
 		surfaceLoadSpans(&d->surf, precompSpans, precompSpansLen);
-	else if (displayHasAnimation(d))
+	else if (d->hasAnim)
 		surfaceComputeSpans(&d->surf, d->rangeHigh, d->rangeLow, d->rangeRate, (int)d->numRange);
 	surfaceCombine(&d->surf);
 
@@ -132,15 +165,15 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t pr
 }
 
 
-int displayHasAnimation(const Display* d)
+bool displayHasAnimation(const Display* d)
 {
-	if (!d || !d->numRange)
-		return false;
+	return d ? d->hasAnim : false;
+}
 
-	// Does the image contain any usable ranges?
-	for (unsigned i = 0; i < d->numRange; ++i)
-		if (d->rangeRate[i] && d->rangeHigh[i] > d->rangeLow[i])
-			return true;
+bool displayIsTextShown(const Display* d)
+{
+	if (d && d->text && d->textTimer < TEXT_TIME_END)
+		return true;
 	return false;
 }
 
@@ -249,6 +282,8 @@ static const double rateScale = (1.0 / (double)CYCLE_MOD);
 
 void displayUpdateTimer(Display* d, double delta)
 {
+	if (!d)
+		return;
 	for (unsigned i = 0; i < d->numRange; ++i)
 	{
 		d->rangeTrigger[i] = false;
@@ -269,14 +304,17 @@ void displayUpdateTimer(Display* d, double delta)
 	}
 }
 
-void displayRepaint(Display* d)
+void displayUpdateTextDisplay(Display* d, double delta)
 {
-	if (!d || !d->repaint)
-		return;
+	if (d && d->text && d->textTimer < TEXT_TIME_END)
+		d->textTimer += (float)delta;
+}
 
-	// Update palette
-	if (d->cycleMethod == 0)
+static void updatePalette(Display* d)
+{
+	switch (d->cycleMethod)
 	{
+	case DISPLAY_CYCLEMETHOD_STEP:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			if (d->rangeTrigger[i])
 			{
@@ -286,35 +324,43 @@ void displayRepaint(Display* d)
 					surfacePalShiftLeft(&d->surf, d->rangeHigh[i], d->rangeLow[i]);
 				d->surfDamage = true;
 			}
-	}
-	else if (d->cycleMethod == 1)
-	{
+		break;
+	case DISPLAY_CYCLEMETHOD_SRGB:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeSrgb(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
-	}
-	else if (d->cycleMethod == 2)
-	{
+		break;
+	case DISPLAY_CYCLEMETHOD_LINEAR:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeLinear(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
-	}
-	else if (d->cycleMethod == 3)
-	{
+		break;
+	case DISPLAY_CYCLEMETHOD_HSLUV:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeHsluv(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
-	}
-	else if (d->cycleMethod == 4)
-	{
+		break;
+	case DISPLAY_CYCLEMETHOD_LAB:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeLab(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
 				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
+		break;
+	default: break;
 	}
+}
+
+void displayRepaint(Display* d)
+{
+	if (!d || !d->repaint)
+		return;
+
+	// Update palette
+	if (d->hasAnim)
+		updatePalette(d);
 
 	// Animate image with palette
 	if (d->surfDamage)
@@ -333,12 +379,28 @@ void displayRepaint(Display* d)
 	if (d->palView)
 		drawPalette(d, MAX(7, (1024 + d->scrW + d->scrH) >> 8));
 
+	if (d->text && d->textTimer < TEXT_TIME_END)
+	{
+		SDL_SetRenderDrawBlendMode(d->rend, SDL_BLENDMODE_BLEND);
+		float interp = d->textTimer > TEXT_TIME_FADE
+			? (d->textTimer - TEXT_TIME_FADE) / (TEXT_TIME_END - TEXT_TIME_FADE) : 0.0f;
+		Uint8 alpha = (Uint8)((1.0 - interp) * 0xFF);
+		SDL_SetRenderDrawColor(d->rend, 0x00, 0x00, 0x00, alpha >> 1);
+		SDL_SetTextureAlphaMod(d->font.tex, alpha);
+		int w, h;
+		textComputeArea(&w, &h, d->text);
+		h += 16;
+		SDL_RenderFillRect(d->rend, &(SDL_Rect){0, d->scrH - h, d->scrW, h});
+		SDL_SetRenderDrawBlendMode(d->rend, SDL_BLENDMODE_NONE);
+		textDraw(&d->font, 16, d->scrH - h + 8, d->text);
+	}
+
 	SDL_RenderPresent(d->rend);
 	d->repaint = false;
 }
 
 
-void displayToggleSpan(Display* d)
+void displayToggleShowSpan(Display* d)
 {
 	if (!d)
 		return;
@@ -346,7 +408,7 @@ void displayToggleSpan(Display* d)
 	d->repaint = true;
 }
 
-void displayTogglePalette(Display* d)
+void displayToggleShowPalette(Display* d)
 {
 	if (!d)
 		return;
@@ -358,7 +420,7 @@ void displayCycleBlendMethod(Display* d)
 {
 	if (!d)
 		return;
-	d->cycleMethod = (d->cycleMethod + 1) % 5;
+	d->cycleMethod = (d->cycleMethod + 1) % DISPLAY_CYCLEMETHOD_NUM;
 	if (d->cycleMethod == 0)
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRange(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i]);
@@ -366,8 +428,27 @@ void displayCycleBlendMethod(Display* d)
 	d->repaint = true;
 }
 
+
+bool displayIsSpanShown(const Display* d)
+{
+	return d ? d->spanView : false;
+}
+
+bool displayIsPaletteShown(const Display* d)
+{
+	return d ? d->palView : false;
+}
+
+DisplayCycleMethod displayGetCycleMethod(const Display* d)
+{
+	return d ? d->cycleMethod : -1;
+}
+
+
 void displayResize(Display* d)
 {
+	if (!d)
+		return;
 	SDL_GetRendererOutputSize(d->rend, &d->scrW, &d->scrH);
 	d->srcAspect = (double)d->surf.w / (double)d->surf.h;
 	recalcDisplayRect(d, d->scrW, d->scrH, d->srcAspect);
@@ -376,7 +457,15 @@ void displayResize(Display* d)
 
 void displayDamage(Display* d)
 {
-	if (!d)
+	if (d)
+		d->repaint = true;
+}
+
+
+void displayShowText(Display* d, const char* text)
+{
+	if (!d || !text)
 		return;
-	d->repaint = true;
+	d->text = text;
+	d->textTimer = 0;
 }

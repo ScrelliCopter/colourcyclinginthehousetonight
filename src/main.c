@@ -23,9 +23,9 @@ static int customSubscriber(uint32_t fourcc)
 {
 	switch (fourcc)
 	{
-		case (IFF_CUSTOM_SCENE_INFO):
-		case (IFF_CUSTOM_SPANS):
-		case (IFF_CUSTOM_OGG_VORBIS):
+		case IFF_CUSTOM_SCENE_INFO:
+		case IFF_CUSTOM_SPANS:
+		case IFF_CUSTOM_OGG_VORBIS:
 			return 1;
 		default:
 			return 0;
@@ -95,11 +95,16 @@ static SDL_Renderer* rend = NULL;
 
 static Display* display = NULL;
 
+static char displayText[2048];
+static int  displayTextSplit;
+
 static bool quit     = false;
 static bool realtime = false;
 
 static int speed = 2;
 
+static void updateInteractiveDisplayText(void);
+static void setupDisplayText(const char* restrict lbmPath, const char* restrict title);
 static void playAudio(void);
 
 //FIXME: this has awful behaviour on load failure
@@ -160,9 +165,59 @@ static int reset(const char* lbmPath)
 	}
 	BUF_FREE(precompSpans);
 
+	setupDisplayText(lbmPath, wintitle);
+
 	playAudio();
 	realtime = (!BUF_EMPTY(precompSpans) || displayHasAnimation(display)) ? true : false;
 	return 0;
+}
+
+static void updateInteractiveDisplayText(void)
+{
+	if (displayTextSplit < 0)
+		return;
+	const char* methodName = NULL;
+	switch (displayGetCycleMethod(display))
+	{
+	case DISPLAY_CYCLEMETHOD_STEP:   methodName = "Step"; break;
+	case DISPLAY_CYCLEMETHOD_SRGB:   methodName = "SRGB"; break;
+	case DISPLAY_CYCLEMETHOD_LINEAR: methodName = "Linear"; break;
+	case DISPLAY_CYCLEMETHOD_HSLUV:  methodName = "HSluv"; break;
+	case DISPLAY_CYCLEMETHOD_LAB:    methodName = "CIELAB"; break;
+	default:                         methodName = "?"; break;
+	}
+	const char* yes = "YES", * no = "NO";
+	snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+		"\nShow palette (P): %s\n"
+		"Show spans (S): %s\n"
+		"Cycle method (M): %s\n"
+		"Speed -([), +(]): %.1fx",
+		displayIsPaletteShown(display) ? yes : no,
+		displayIsSpanShown(display)    ? yes : no,
+		methodName,
+		(float)speed / 2.0);
+	displayShowText(display, displayText);
+}
+
+static void setupDisplayText(const char* restrict lbmPath, const char* restrict title)
+{
+	const char* lbmName = strrchr(lbmPath, '/');
+	displayTextSplit = snprintf(displayText, sizeof(displayText),
+		"%s - \"%s\"\n", lbmName ? lbmName + 1 : lbmPath, title);
+	if (displayTextSplit < 0)
+		return;
+
+	if (!BUF_EMPTY(oggv) || STR_EMPTY(audioPath))
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+			"Audio: %s", BUF_EMPTY(oggv) ? "NONE" : "EMBEDDED (OGGV)");
+	else
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+			"Audio: EXTERNAL (%s)", audioPath.ptr);
+
+	if (displayTextSplit >= 0 && (!STR_EMPTY(audioPath) || !BUF_EMPTY(oggv)))
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+			"  Volume: %.1f\n", (float)volume * (100.0f / 255.0f));
+	updateInteractiveDisplayText();
 }
 
 void playAudio(void)
@@ -203,20 +258,31 @@ static void handleEvent(const SDL_Event* event)
 	else if (event->type == SDL_KEYDOWN)
 	{
 		if (event->key.keysym.scancode == SDL_SCANCODE_P)
-			displayTogglePalette(display);
+		{
+			displayToggleShowPalette(display);
+			updateInteractiveDisplayText();
+		}
 		else if (event->key.keysym.scancode == SDL_SCANCODE_S)
-			displayToggleSpan(display);
+		{
+			displayToggleShowSpan(display);
+			updateInteractiveDisplayText();
+		}
 		else if (event->key.keysym.scancode == SDL_SCANCODE_M)
+		{
 			displayCycleBlendMethod(display);
+			updateInteractiveDisplayText();
+		}
 		else if (event->key.keysym.scancode == SDL_SCANCODE_LEFTBRACKET)
 		{
 			if (speed > 0)
 				--speed;
+			updateInteractiveDisplayText();
 		}
 		else if (event->key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET)
 		{
 			if (speed < 4)
 				++speed;
+			updateInteractiveDisplayText();
 		}
 	}
 	else if (event->type == SDL_WINDOWEVENT)
@@ -250,9 +316,13 @@ int main(int argc, char** argv)
 
 	const double perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
 	Uint64 tick = SDL_GetPerformanceCounter();
-	realtime = (!BUF_EMPTY(precompSpans) || displayHasAnimation(display)) ? true : false;
 	while (!quit)
 	{
+		bool realtimeNew = !BUF_EMPTY(precompSpans) || displayHasAnimation(display) || displayIsTextShown(display);
+		if (!realtime == realtimeNew)
+			tick = SDL_GetPerformanceCounter();
+		realtime = realtimeNew;
+
 		SDL_Event event;
 		if (realtime)
 			while (SDL_PollEvent(&event) > 0) handleEvent(&event);
@@ -265,8 +335,9 @@ int main(int argc, char** argv)
 			const Uint64 lastTick = tick;
 			tick = SDL_GetPerformanceCounter();
 			const double dTick = perfScale * (double)(tick - lastTick);
-			const double timeScale = (1 << speed) / 4.0;
+			const double timeScale = (speed + speed) / 4.0;
 			displayUpdateTimer(display, timeScale * dTick);
+			displayUpdateTextDisplay(display, dTick);
 			displayDamage(display);
 		}
 

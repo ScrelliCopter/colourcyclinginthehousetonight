@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vwfontspec image="vwbmf.png" space="2">
+	<charmap>
+		<line>abcdefghijklmnopqrstuvwxyz</line>
+		<line>ABCDEFGHIJKLMNOPQRSTUVWXYZ</line>
+		<line>0123456789</line>
+		<line>'";:,.!?@#$%&amp;*+-=_/\|`~</line>
+		<line>(){}[]&lt;&gt;</line>
+	</charmap>
+	<kerning width="1">
+		<override glyph="F">
+			<next width="0">Aacdegjmnopqrsuvwxyz,.</next>
+		</override>
+		<override glyph="P">
+			<next width="0">a</next>
+		</override>
+		<override glyph="T">
+			<next width="0">Aacdegjmnopqrsuvwxyz,.</next>
+			<prev width="0">AarbceghklmnopqstuvwxyzL</prev>
+		</override>
+		<override glyph="Y">
+			<prev width="0">Ll</prev>
+		</override>
+		<override glyph="f">
+			<next width="0">Aacdegjmnopqrsuvwxyzf ,.</next>
+		</override>
+		<override glyph="j">
+			<prev width="0">rvPY</prev>
+		</override>
+		<override glyph=" ">
+			<prev width="2">!?,.</prev>
+		</override>
+	</kerning>
+</vwfontspec>
