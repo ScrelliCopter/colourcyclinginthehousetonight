@@ -72,6 +72,8 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v)
 
 #define MIN(A, B) (((A) < (B)) ? (A) : (B))
 #define MAX(A, B) (((A) > (B)) ? (A) : (B))
+#define CLAMP(X, A, B) (MIN((B), MAX((A), (X))))
+#define SATURATE(X) (CLAMP((X), 0, 1))
 
 static inline int FORCE_INLINE emod(int i, int d) { int r = i % d; return r < 0 ? r + d : r; }
 static inline double FORCE_INLINE efmod(double x, double d) { double r = fmod(x, d); return r < 0.0 ? r + d : r; }

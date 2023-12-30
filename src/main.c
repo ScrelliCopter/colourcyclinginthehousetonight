@@ -101,7 +101,8 @@ static int  displayTextSplit;
 static bool quit     = false;
 static bool realtime = false;
 
-static int speed = 2;
+#define TIMESCALE_NUM 11
+static int speed = 4;
 
 static void updateInteractiveDisplayText(void);
 static void setupDisplayText(const char* restrict lbmPath, const char* restrict title);
@@ -176,26 +177,40 @@ static void updateInteractiveDisplayText(void)
 {
 	if (displayTextSplit < 0)
 		return;
-	const char* methodName = NULL;
+	const char* methodName = NULL, * speedTimescaleText = NULL;
 	switch (displayGetCycleMethod(display))
 	{
 	case DISPLAY_CYCLEMETHOD_STEP:   methodName = "Step"; break;
-	case DISPLAY_CYCLEMETHOD_SRGB:   methodName = "SRGB"; break;
+	case DISPLAY_CYCLEMETHOD_SRGB:   methodName = "sRGB"; break;
 	case DISPLAY_CYCLEMETHOD_LINEAR: methodName = "Linear"; break;
-	case DISPLAY_CYCLEMETHOD_HSLUV:  methodName = "HSluv"; break;
+	case DISPLAY_CYCLEMETHOD_HSLUV:  methodName = "HSLuv"; break;
 	case DISPLAY_CYCLEMETHOD_LAB:    methodName = "CIELAB"; break;
 	default:                         methodName = "?"; break;
+	}
+	switch (speed)
+	{
+	case  0: speedTimescaleText = "0.125"; break;
+	case  1: speedTimescaleText =  "0.25"; break;
+	case  2: speedTimescaleText =  "0.5";  break;
+	case  3: speedTimescaleText =  "0.75"; break;
+	case  4: speedTimescaleText =  "1.0";  break;
+	case  5: speedTimescaleText =  "1.5";  break;
+	case  6: speedTimescaleText =  "2.0";  break;
+	case  7: speedTimescaleText =  "3.0";  break;
+	case  8: speedTimescaleText =  "4.0";  break;
+	case  9: speedTimescaleText =  "8.0";  break;
+	case 10: speedTimescaleText = "16.0";  break;
+	default: speedTimescaleText = "?"; break;
 	}
 	const char* yes = "YES", * no = "NO";
 	snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
 		"\nShow palette (P): %s\n"
 		"Show spans (S): %s\n"
 		"Cycle method (M): %s\n"
-		"Speed -([), +(]): %.1fx",
+		"Speed -([), +(]): %sx",
 		displayIsPaletteShown(display) ? yes : no,
 		displayIsSpanShown(display)    ? yes : no,
-		methodName,
-		(float)speed / 2.0);
+		methodName, speedTimescaleText);
 	displayShowText(display, displayText);
 }
 
@@ -216,7 +231,7 @@ static void setupDisplayText(const char* restrict lbmPath, const char* restrict 
 
 	if (displayTextSplit >= 0 && (!STR_EMPTY(audioPath) || !BUF_EMPTY(oggv)))
 		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
-			"  Volume: %.1f\n", (float)volume * (100.0f / 255.0f));
+			"  Volume: %.1f%%\n", (float)volume * (100.0f / 255.0f));
 	updateInteractiveDisplayText();
 }
 
@@ -280,7 +295,7 @@ static void handleEvent(const SDL_Event* event)
 		}
 		else if (event->key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET)
 		{
-			if (speed < 4)
+			if (speed < TIMESCALE_NUM - 1)
 				++speed;
 			updateInteractiveDisplayText();
 		}
@@ -335,7 +350,8 @@ int main(int argc, char** argv)
 			const Uint64 lastTick = tick;
 			tick = SDL_GetPerformanceCounter();
 			const double dTick = perfScale * (double)(tick - lastTick);
-			const double timeScale = (speed + speed) / 4.0;
+			const uint8_t speedTimescales[TIMESCALE_NUM] = { 1, 2, 4, 6, 8, 12, 16, 24, 32, 64, 128 };
+			const double timeScale = speedTimescales[speed] * (1.0 / 8.0);
 			displayUpdateTimer(display, timeScale * dTick);
 			displayUpdateTextDisplay(display, dTick);
 			displayDamage(display);

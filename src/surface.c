@@ -199,9 +199,6 @@ void surfaceRangeHsluv(Surface* surf, uint8_t hi, uint8_t low, int cycle, double
 
 static void labFromRgb(double* oL, double* oA, double* oB, double r, double g, double b)
 {
-	if (!oL || !oA || !oB)
-		return;
-
 	r = linearFromSrgb(r), g = linearFromSrgb(g), b = linearFromSrgb(b);
 
 #define GAMMA(V) (((V) > 0.008856) ? pow((V), 1.0 / 3.0) : (7.787 * (V)) + (16.0 / 116.0))
@@ -216,9 +213,6 @@ static void labFromRgb(double* oL, double* oA, double* oB, double r, double g, d
 
 static void rgbFromLab(double* oR, double* oG, double* oB, double l, double a, double b)
 {
-	if (!oR || !oG || !oB)
-		return;
-
 	double y = (l + 16.0) / 116.0;
 	double x = y + a / 500.0;
 	double z = y - b / 200.0;
@@ -256,9 +250,9 @@ void surfaceRangeLab(Surface* surf, uint8_t hi, uint8_t low, int cycle, double t
 		double r, g, b, a = LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
 		rgbFromLab(&r, &g, &b, LERP(oldL, newL, tween), LERP(oldA, newA, tween), LERP(oldB, newB, tween));
 		dst[low + j] = MAKE_COLOUR(
-			(uint8_t)(r * 255.0),
-			(uint8_t)(g * 255.0),
-			(uint8_t)(b * 255.0),
+			(uint8_t)(SATURATE(r) * 255.0),
+			(uint8_t)(SATURATE(g) * 255.0),
+			(uint8_t)(SATURATE(b) * 255.0),
 			(uint8_t)(a * 255.0));
 	}
 }
