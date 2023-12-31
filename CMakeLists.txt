@@ -4,9 +4,10 @@ project(${NAME} LANGUAGES C)
 
 option(ENABLE_ASAN "Enable address sanitiser" OFF)
 
-set(CMAKE_C_STANDARD 99)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(SDL2 REQUIRED)
+find_package(Vorbisfile)
 include(CheckSymbolExists)
 include(CheckIncludeFile)
 
@@ -21,7 +22,6 @@ set(SOURCES
 	src/font.c src/font.h
 	src/text.c src/text.h
 	src/hsluv.c src/hsluv.h
-	src/stb_vorbis.h
 	src/util.h
 	src/lbmio.c src/lbmpal.c src/lbmdef.h
 	src/lbm.c src/lbm.h
@@ -31,14 +31,21 @@ set(SOURCES
 	src/main.c)
 
 add_executable(${NAME} ${SOURCES})
+set_property(TARGET ${NAME} PROPERTY C_STANDARD 99)
 target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_FTELLO}>:HAVE_FTELLO>
 	$<$<BOOL:${HAVE_FSEEKO}>:HAVE_FSEEKO>
 	$<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
 	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>
 	$<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
-if (APPLE)
+if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin")
 	target_link_options(${NAME} PRIVATE "-Wl,-rpath,/Library/Frameworks")
+endif()
+if (TARGET Vorbis::vorbisfile)
+	target_compile_definitions(${NAME} PRIVATE USE_VORBISFILE)
+	target_link_libraries(${NAME} Vorbis::vorbisfile)
+else()
+	target_sources(${NAME} PRIVATE src/stb_vorbis.h)
 endif()
 target_link_libraries(${NAME}
 	$<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
