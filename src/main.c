@@ -102,8 +102,8 @@ static int  displayTextSplit;
 static bool quit     = false;
 static bool realtime = false;
 
-#define TIMESCALE_NUM 11
-static int speed = 4;
+#define TIMESCALE_NUM 12
+static int speed = 5;
 
 static void updateInteractiveDisplayText(void);
 static void setupDisplayText(const char* restrict lbmPath, const char* restrict displayTitle);
@@ -190,17 +190,18 @@ static void updateInteractiveDisplayText(void)
 	}
 	switch (speed)
 	{
-	case  0: speedTimescaleText = "0.125"; break;
-	case  1: speedTimescaleText =  "0.25"; break;
-	case  2: speedTimescaleText =  "0.5";  break;
-	case  3: speedTimescaleText =  "0.75"; break;
-	case  4: speedTimescaleText =  "1.0";  break;
-	case  5: speedTimescaleText =  "1.5";  break;
-	case  6: speedTimescaleText =  "2.0";  break;
-	case  7: speedTimescaleText =  "3.0";  break;
-	case  8: speedTimescaleText =  "4.0";  break;
-	case  9: speedTimescaleText =  "8.0";  break;
-	case 10: speedTimescaleText = "16.0";  break;
+	case  0: speedTimescaleText =  "0.0625"; break;
+	case  1: speedTimescaleText =  "0.125";  break;
+	case  2: speedTimescaleText =  "0.25";   break;
+	case  3: speedTimescaleText =  "0.5";    break;
+	case  4: speedTimescaleText =  "0.75";   break;
+	case  5: speedTimescaleText =  "1.0";    break;
+	case  6: speedTimescaleText =  "1.5";    break;
+	case  7: speedTimescaleText =  "2.0";    break;
+	case  8: speedTimescaleText =  "3.0";    break;
+	case  9: speedTimescaleText =  "4.0";    break;
+	case 10: speedTimescaleText =  "8.0";    break;
+	case 11: speedTimescaleText = "16.0";    break;
 	default: speedTimescaleText = "?"; break;
 	}
 	const char* yes = "YES", * no = "NO";
@@ -351,8 +352,8 @@ int main(int argc, char** argv)
 			const Uint64 lastTick = tick;
 			tick = SDL_GetPerformanceCounter();
 			const double dTick = perfScale * (double)(tick - lastTick);
-			const uint8_t speedTimescales[TIMESCALE_NUM] = { 1, 2, 4, 6, 8, 12, 16, 24, 32, 64, 128 };
-			const double timeScale = speedTimescales[speed] * (1.0 / 8.0);
+			const short speedTimescales[TIMESCALE_NUM] = { 1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 128, 256 };
+			const double timeScale = speedTimescales[speed] * (1.0 / 16.0);
 			displayUpdateTimer(display, timeScale * dTick);
 			displayUpdateTextDisplay(display, dTick);
 			displayDamage(display);
