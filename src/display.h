@@ -8,7 +8,7 @@ typedef struct Display Display;
 
 typedef struct SDL_Renderer SDL_Renderer;
 
-typedef enum DisplayCycleMethod
+enum DisplayCycleMethod
 {
 	DISPLAY_CYCLEMETHOD_STEP = 0,
 	DISPLAY_CYCLEMETHOD_SRGB,
@@ -17,7 +17,7 @@ typedef enum DisplayCycleMethod
 	DISPLAY_CYCLEMETHOD_LAB,
 
 	DISPLAY_CYCLEMETHOD_NUM
-} DisplayCycleMethod;
+};
 
 Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precompSpans, size_t precompSpansLen);
 void displayFree(Display* d);
@@ -36,7 +36,7 @@ void displayCycleBlendMethod(Display* d);
 
 bool displayIsSpanShown(const Display* d);
 bool displayIsPaletteShown(const Display* d);
-DisplayCycleMethod displayGetCycleMethod(const Display* d);
+int displayGetCycleMethod(const Display* d);
 
 void displayResize(Display* d);
 void displayDamage(Display* d);

@@ -31,12 +31,11 @@ if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND Vorbis_LIBRARY MATCHES "[^/]+\\.fr
 	find_path(Vorbis_INCLUDE_DIR codec.h PATHS ${Vorbis_LIBRARY} PATH_SUFFIXES Headers)
 else()
 	find_path(Vorbis_INCLUDE_DIR
-		NAMES vorbis.h
+		NAMES vorbis/codec.h
 		PATHS
 			${_Vorbis_PC_INCLUDEDIR}
 			${_Vorbis_PC_INCLUDE_DIRS}
-			${Vorbis_ROOT}
-		PATH_SUFFIXES vorbis)
+			${Vorbis_ROOT})
 endif()
 
 include(FindPackageHandleStandardArgs)

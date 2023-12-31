@@ -1,10 +1,10 @@
 #include "text.h"
 #include "font.h"
 #include <SDL.h>
+#include <string.h>
 
 
 const int textScale = 3;
-const int tabSize = FONT_SPACE_WIDTH * textScale * 8;
 
 void textCreateFontTexture(Font* font)
 {
@@ -36,6 +36,7 @@ void textCreateFontTexture(Font* font)
 
 static void handleControlChar(int c, int xorig, int* restrict x, int* restrict y)
 {
+	const int tabSize = FONT_SPACE_WIDTH * textScale * 8;
 	switch (c)
 	{
 	case ' ':
@@ -56,10 +57,10 @@ static void handleControlChar(int c, int xorig, int* restrict x, int* restrict y
 
 void textComputeArea(int* restrict w, int* restrict h, const char* restrict str)
 {
-	const unsigned len = strlen(str);
+	const size_t len = strlen(str);
 
 	int x = 0, y = 0, ww = 0;
-	for (unsigned i = 0; i < len; ++i)
+	for (size_t i = 0; i < len; ++i)
 	{
 		int offset, size, c = (unsigned char)str[i];
 		if (fontGetGlyph(c, &offset, &size))
@@ -79,10 +80,10 @@ void textDraw(const Font* font, int x, int y, const char* restrict str)
 	if (!font || !font->r || !font->tex || !str)
 		return;
 
-	const unsigned len = strlen(str);
+	const size_t len = strlen(str);
 	const int xorig = x;
 
-	for (unsigned i = 0; i < len; ++i)
+	for (size_t i = 0; i < len; ++i)
 	{
 		int offset, size, c = (unsigned char)str[i];
 		if (fontGetGlyph(c, &offset, &size))

@@ -12,12 +12,11 @@ if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin")
 endif()
 
 find_path(Ogg_INCLUDE_DIR
-	NAMES ogg.h
+	NAMES ogg/ogg.h
 	PATHS
 		${_Ogg_PC_INCLUDEDIR}
 		${_Ogg_PC_INCLUDE_DIRS}
-		${Ogg_ROOT}
-	PATH_SUFFIXES ogg)
+		${Ogg_ROOT})
 
 find_library(Ogg_LIBRARY
 	NAMES

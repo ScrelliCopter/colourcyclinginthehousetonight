@@ -28,7 +28,7 @@ struct Display
 	float cycleTimers[LBM_MAX_CRNG];
 	uint8_t cyclePos[LBM_MAX_CRNG];
 
-	DisplayCycleMethod cycleMethod;
+	int cycleMethod;
 	bool spanView, palView;
 	bool repaint, hasAnim;
 
@@ -439,7 +439,7 @@ bool displayIsPaletteShown(const Display* d)
 	return d ? d->palView : false;
 }
 
-DisplayCycleMethod displayGetCycleMethod(const Display* d)
+int displayGetCycleMethod(const Display* d)
 {
 	return d ? d->cycleMethod : -1;
 }

@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 
 static SizedStr title     = STR_CLEAR();
@@ -105,7 +106,7 @@ static bool realtime = false;
 static int speed = 4;
 
 static void updateInteractiveDisplayText(void);
-static void setupDisplayText(const char* restrict lbmPath, const char* restrict title);
+static void setupDisplayText(const char* restrict lbmPath, const char* restrict displayTitle);
 static void playAudio(void);
 
 //FIXME: this has awful behaviour on load failure
@@ -214,11 +215,11 @@ static void updateInteractiveDisplayText(void)
 	displayShowText(display, displayText);
 }
 
-static void setupDisplayText(const char* restrict lbmPath, const char* restrict title)
+static void setupDisplayText(const char* restrict lbmPath, const char* restrict displayTitle)
 {
 	const char* lbmName = strrchr(lbmPath, '/');
 	displayTextSplit = snprintf(displayText, sizeof(displayText),
-		"%s - \"%s\"\n", lbmName ? lbmName + 1 : lbmPath, title);
+		"%s - \"%s\"\n", lbmName ? lbmName + 1 : lbmPath, displayTitle);
 	if (displayTextSplit < 0)
 		return;
 

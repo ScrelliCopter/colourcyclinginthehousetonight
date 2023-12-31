@@ -15,12 +15,14 @@ else()
 	endif()
 
 	find_path(Vorbisfile_INCLUDE_DIR
-		NAMES vorbisfile.h
+		NAMES vorbis/vorbisfile.h
 		PATHS
 			${_Vorbisfile_PC_INCLUDEDIR}
 			${_Vorbisfile_PC_INCLUDE_DIRS}
-			${Vorbisfile_ROOT} ${Vorbis_ROOT}
-		PATH_SUFFIXES vorbis)
+			${Vorbisfile_ROOT}
+			${Vorbis_INCLUDE_DIRS})
+
+	get_filename_component(Vorbisfile_LIBRARY_DIR "${Vorbis_LIBRARIES}" DIRECTORY CACHE)
 
 	find_library(Vorbisfile_LIBRARY
 		NAMES
@@ -31,7 +33,10 @@ else()
 		PATHS
 			${_Vorbisfile_PC_LIBDIR}
 			${_Vorbisfile_PC_LIBRARY_DIRS}
-			${Vorbisfile_ROOT} ${Vorbis_ROOT})
+			${Vorbisfile_ROOT}
+			${Vorbisfile_LIBRARY_DIR})
+
+	mark_as_advanced(Vorbisfile_LIBRARY_DIR)
 
 	if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin")
 		set(CMAKE_FIND_FRAMEWORK "${_CMAKE_FIND_FRAMEWORK}")
@@ -45,7 +50,7 @@ find_package_handle_standard_args(Vorbisfile
 	REQUIRED_VARS Vorbisfile_LIBRARY Vorbisfile_INCLUDE_DIR
 	VERSION_VAR Vorbisfile_VERSION)
 
-mark_as_advanced(Vorbisfile_FOUND Vorbisfile_INCLUDE_DIR Vorbisfile_LIBRARY)
+mark_as_advanced(Vorbisfile_FOUND Vorbisfile_INCLUDE_DIR Vorbisfile_LIBRARY Vorbisfile_VERSION)
 
 if (Vorbisfile_FOUND AND NOT TARGET Vorbis::vorbisfile)
 	set(Vorbisfile_INCLUDE_DIRS "${Vorbisfile_INCLUDE_DIR}")
@@ -58,8 +63,8 @@ if (Vorbisfile_FOUND AND NOT TARGET Vorbis::vorbisfile)
 			INTERFACE_INCLUDE_DIRECTORIES "${Vorbisfile_INCLUDE_DIRS}")
 	else()
 		set(Vorbisfile_DEFINITIONS "${_Vorbis_PC_CFLAGS_OTHER}")
-		add_library(Vorbis::vorbis UNKNOWN IMPORTED)
-		set_target_properties(Vorbis::vorbis PROPERTIES
+		add_library(Vorbis::vorbisfile UNKNOWN IMPORTED)
+		set_target_properties(Vorbis::vorbisfile PROPERTIES
 			IMPORTED_LOCATION "${Vorbisfile_LIBRARIES}"
 			INTERFACE_LINK_LIBRARIES Vorbis::vorbis
 			INTERFACE_COMPILE_OPTIONS "${Vorbisfile_DEFINITIONS}"
