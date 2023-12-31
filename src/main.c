@@ -190,9 +190,9 @@ static void updateInteractiveDisplayText(void)
 	}
 	switch (speed)
 	{
-	case  0: speedTimescaleText =  "0.0625"; break;
-	case  1: speedTimescaleText =  "0.125";  break;
-	case  2: speedTimescaleText =  "0.25";   break;
+	case  0: speedTimescaleText =  "0.0372"; break;
+	case  1: speedTimescaleText =  "0.09";   break;
+	case  2: speedTimescaleText =  "0.21";   break;
 	case  3: speedTimescaleText =  "0.5";    break;
 	case  4: speedTimescaleText =  "0.75";   break;
 	case  5: speedTimescaleText =  "1.0";    break;
@@ -352,8 +352,8 @@ int main(int argc, char** argv)
 			const Uint64 lastTick = tick;
 			tick = SDL_GetPerformanceCounter();
 			const double dTick = perfScale * (double)(tick - lastTick);
-			const short speedTimescales[TIMESCALE_NUM] = { 1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 128, 256 };
-			const double timeScale = speedTimescales[speed] * (1.0 / 16.0);
+			const short speedTimescales[TIMESCALE_NUM] = { 0x26, 0x5C, 0xD7, 0x200, 0x300, 0x400, 0x600, 0x800, 0xC00, 0x1000, 0x2000, 0x4000 };
+			const double timeScale = speedTimescales[speed] * (1.0 / 0x400);
 			displayUpdateTimer(display, timeScale * dTick);
 			displayUpdateTextDisplay(display, dTick);
 			displayDamage(display);
