@@ -2,9 +2,10 @@
 #include "lbm.h"
 #include <stdio.h>
 
-size_t lbmDefaultFileRead(void* out, size_t size, void* user)
+
+size_t lbmDefaultFileRead(void* out, size_t size, size_t numItems, void* user)
 {
-	return fread(out, size, 1, (FILE*)user);
+	return fread(out, size, numItems, (FILE*)user);
 }
 
 int lbmDefaultFileSeek(size_t offset, LbmIoWhence whence, void* user)
@@ -12,9 +13,9 @@ int lbmDefaultFileSeek(size_t offset, LbmIoWhence whence, void* user)
 	int seek;
 	switch (whence)
 	{
-	case (LBMIO_SEEK_SET): seek = SEEK_SET; break;
-	case (LBMIO_SEEK_CUR): seek = SEEK_CUR; break;
-	case (LBMIO_SEEK_END): seek = SEEK_END; break;
+	case LBMIO_SEEK_SET: seek = SEEK_SET; break;
+	case LBMIO_SEEK_CUR: seek = SEEK_CUR; break;
+	case LBMIO_SEEK_END: seek = SEEK_END; break;
 	default: seek = -1;
 	}
 

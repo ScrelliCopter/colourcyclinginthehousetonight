@@ -11,7 +11,7 @@ typedef enum
 	LBMIO_SEEK_END = 2  // From EOF
 } LbmIoWhence;
 
-typedef size_t (*LbmIocbRead)(void* out, size_t size, void* user);
+typedef size_t (*LbmIocbRead)(void* out, size_t size, size_t numItems, void* user);
 typedef int    (*LbmIocbSeek)(size_t offset, LbmIoWhence whence, void* user);
 typedef size_t (*LbmIocbTell)(void* user);
 typedef void   (*LbmIocbClose)(void* user);
@@ -26,7 +26,7 @@ typedef struct
 
 } LbmIocb;
 
-size_t lbmDefaultFileRead(void* out, size_t size, void* user);
+size_t lbmDefaultFileRead(void* out, size_t size, size_t numItems, void* user);
 int    lbmDefaultFileSeek(size_t offset, LbmIoWhence whence, void* user);
 size_t lbmDefaultFileTell(void* user);
 void   lbmDefaultFileClose(void* user);

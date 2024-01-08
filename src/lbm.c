@@ -30,16 +30,16 @@ typedef struct
 } LbmReaderState;
 
 
-#define IO_READ(V, L) s->iocb->read((V), (L), s->iocb->user)
+#define IO_READ(V, L, N) s->iocb->read((V), (L), (N), s->iocb->user)
 #define IO_SEEK(OFF, WHENCE) s->iocb->seek((OFF), (WHENCE), s->iocb->user)
 #define IO_TELL() s->iocb->tell(s->iocb->user)
 
-#define IO_READ_FOURCC(V) IO_READ(&(V), sizeof(uint32_t))
-#define IO_READ_ULONG(V)  IO_READ(&(V), sizeof(uint32_t)); (V) = SWAP_BE32(V)
-#define IO_READ_UWORD(V)  IO_READ(&(V), sizeof(uint16_t)); (V) = SWAP_BE16(V)
-#define IO_READ_UBYTE(V)  IO_READ(&(V), sizeof(uint8_t))
-#define IO_READ_WORD(V)   IO_READ(&(V), sizeof(int16_t));  (V) = (int16_t)SWAP_BE16((uint16_t)(V))
-#define IO_READ_BYTE(V)   IO_READ(&(V), sizeof(int8_t))
+#define IO_READ_FOURCC(V) IO_READ(&(V), sizeof(uint32_t), 1)
+#define IO_READ_ULONG(V)  IO_READ(&(V), sizeof(uint32_t), 1); (V) = SWAP_BE32(V)
+#define IO_READ_UWORD(V)  IO_READ(&(V), sizeof(uint16_t), 1); (V) = SWAP_BE16(V)
+#define IO_READ_UBYTE(V)  IO_READ(&(V), sizeof(uint8_t), 1)
+#define IO_READ_WORD(V)   IO_READ(&(V), sizeof(int16_t), 1);  (V) = (int16_t)SWAP_BE16((uint16_t)(V))
+#define IO_READ_BYTE(V)   IO_READ(&(V), sizeof(int8_t), 1)
 
 #define IO_CHUNK_SKIP(BYTES_READ) \
 	if (chunk->realLen > (BYTES_READ)) \
@@ -110,7 +110,7 @@ static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
 	for (size_t i = 0; i < s->numCmap; ++i)
 	{
 		uint8_t triplet[3];
-		IO_READ(triplet, 3);
+		IO_READ(triplet, 3, sizeof(uint8_t));
 		s->cmap[i] = MAKE_COLOUR(triplet[0], triplet[1], triplet[2], 0xFF);
 	}
 
@@ -155,7 +155,7 @@ static size_t lbmReadRleRow(LbmReaderState* s, uint8_t* dst, size_t rowLen, size
 	{
 		if (copyLen)
 		{
-			IO_READ(&dst[dstRead], copyLen);
+			IO_READ(&dst[dstRead], 1, copyLen);
 			dstRead += copyLen;
 			curRead += copyLen;
 			copyLen = 0;
@@ -193,7 +193,7 @@ static size_t lbmReadPbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t 
 	if (s->bmhd.compression == CMP_NONE)
 	{
 		size_t len = MIN(pixLen, chunkLen);
-		IO_READ(pix, len);
+		IO_READ(pix, 1, len);
 		if (len < pixLen)
 			memset(&pix[len], 0, len - pixLen);
 		return len;
@@ -239,8 +239,7 @@ static size_t lbmReadIlbm(LbmReaderState* s, uint8_t* pix, size_t pixLen, size_t
 		}
 		else
 		{
-			//FIXME: test this
-			irowRead = IO_READ(pix, irowLen);
+			irowRead = IO_READ(irow, 1, irowLen);
 			read += irowRead;
 			if (irowRead & 0x1)
 			{
@@ -280,7 +279,7 @@ GCC_ENDNOWARN()
 
 		// Fill underread
 		if (prowRead < pixStride)
-			memset(&pixRow[prowRead], 0, prowRead - pixStride); //TODO: fill with "transparent" colour?
+			memset(&pixRow[prowRead], 0, pixStride - prowRead); //TODO: fill with "transparent" colour?
 
 		pixRow += pixStride;
 	}
@@ -325,7 +324,7 @@ static int lbmReadCustom(LbmReaderState* s, const IffChunkHeader* chunk)
 			return -1;
 		s->customLen = chunk->chunkLen;
 	}
-	IO_READ(s->custom, chunk->chunkLen);
+	IO_READ(s->custom, chunk->chunkLen, 1);
 	int res = s->customHndl(chunk->chunkId, chunk->chunkLen, s->custom);
 	if (res < 0)
 		return -1;
@@ -349,10 +348,10 @@ static int lbmReadSections(LbmReaderState* s)
 
 		switch (chunk.chunkId)
 		{
-		case (IFF_BMHD): if (lbmReadBitmapHeader(s, &chunk)) return -1; break;
-		case (IFF_CMAP): if (lbmReadColourMap(s, &chunk)) return -1; break;
-		case (IFF_CRNG): if (lbmReadColourRange(s, &chunk)) return -1; break;
-		case (IFF_BODY): if (lbmReadBody(s, &chunk)) return -1; break;
+		case IFF_BMHD: if (lbmReadBitmapHeader(s, &chunk)) return -1; break;
+		case IFF_CMAP: if (lbmReadColourMap(s, &chunk)) return -1; break;
+		case IFF_CRNG: if (lbmReadColourRange(s, &chunk)) return -1; break;
+		case IFF_BODY: if (lbmReadBody(s, &chunk)) return -1; break;
 		default:
 			if (s->customSub && s->customHndl && s->customSub(chunk.chunkId))
 			{
