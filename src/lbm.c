@@ -3,9 +3,10 @@
 #include "lbmdef.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 
-typedef enum { CHUNK_BMHD = 1, CHUNK_CMAP = 1 << 1, CHUNK_BODY = 1 << 2 } LbmChunkMask;
+typedef enum { CHUNK_BMHD = 1, CHUNK_CMAP = 1 << 1, CHUNK_CAMG = 1 << 2, CHUNK_BODY = 1 << 3 } LbmChunkMask;
 
 typedef struct
 {
@@ -21,8 +22,11 @@ typedef struct
 	LbmChunkMask    chunkMask;
 	LbmBitmapHeader bmhd;
 	Colour          cmap[LBM_PAL_SIZE];
+	uint32_t        camgViewMode;
 	unsigned        numCmap;
 	LbmColourRange  crng[LBM_MAX_CRNG];
+	unsigned        numCcrt;
+	LbmGraphicraftRange ccrt[LBM_MAX_CCRT];
 	unsigned        numCrng;
 	uint8_t*        body;
 	unsigned        bodyLen;
@@ -38,6 +42,7 @@ typedef struct
 #define IO_READ_ULONG(V)  IO_READ(&(V), sizeof(uint32_t), 1); (V) = SWAP_BE32(V)
 #define IO_READ_UWORD(V)  IO_READ(&(V), sizeof(uint16_t), 1); (V) = SWAP_BE16(V)
 #define IO_READ_UBYTE(V)  IO_READ(&(V), sizeof(uint8_t), 1)
+#define IO_READ_LONG(V)   IO_READ(&(V), sizeof(int32_t), 1);  (V) = (int32_t)SWAP_BE32((uint32_t)(V))
 #define IO_READ_WORD(V)   IO_READ(&(V), sizeof(int16_t), 1);  (V) = (int16_t)SWAP_BE16((uint16_t)(V))
 #define IO_READ_BYTE(V)   IO_READ(&(V), sizeof(int8_t), 1)
 
@@ -122,6 +127,16 @@ static int lbmReadColourMap(LbmReaderState* s, const IffChunkHeader* chunk)
 	return 0;
 }
 
+#include <stdio.h>
+static int lbmReadAmiga(LbmReaderState* s, const IffChunkHeader* chunk)
+{
+	IO_READ_ULONG(s->camgViewMode);
+	s->chunkMask |= CHUNK_CAMG;
+
+	IO_CHUNK_SKIP(CAMG_SIZE);
+	return 0;
+}
+
 static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
 {
 	// Must be after header
@@ -138,11 +153,31 @@ static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
 	IO_READ_WORD( crng.flags);
 	IO_READ_UBYTE(crng.low);
 	IO_READ_UBYTE(crng.high);
-	if (crng.flags & RNG_REVERSE)
-		crng.rate = (int16_t)-crng.rate;
 
 	s->crng[s->numCrng++] = crng;
 	IO_CHUNK_SKIP(CRNG_SIZE);
+	return 0;
+}
+
+static int lbmReadGraphicraftRange(LbmReaderState* s, const IffChunkHeader* chunk)
+{
+	if (!(s->chunkMask & CHUNK_BMHD))
+		return -1;
+	if (chunk->chunkLen < CCRT_SIZE)
+		return -1;
+	if (s->numCcrt == LBM_MAX_CCRT)
+		return -1;
+
+	LbmGraphicraftRange ccrt;
+	IO_READ_WORD( ccrt.direction);
+	IO_READ_UBYTE(ccrt.start);
+	IO_READ_UBYTE(ccrt.end);
+	IO_READ_LONG( ccrt.seconds);
+	IO_READ_LONG( ccrt.microseconds);
+	IO_READ_WORD( ccrt.pad);
+
+	s->ccrt[s->numCcrt++] = ccrt;
+	IO_CHUNK_SKIP(CCRT_SIZE);
 	return 0;
 }
 
@@ -350,7 +385,9 @@ static int lbmReadSections(LbmReaderState* s)
 		{
 		case IFF_BMHD: if (lbmReadBitmapHeader(s, &chunk)) return -1; break;
 		case IFF_CMAP: if (lbmReadColourMap(s, &chunk)) return -1; break;
+		case IFF_CAMG: if (lbmReadAmiga(s, &chunk)) return -1; break;
 		case IFF_CRNG: if (lbmReadColourRange(s, &chunk)) return -1; break;
+		case IFF_CCRT: if (lbmReadGraphicraftRange(s, &chunk)) return -1; break;
 		case IFF_BODY: if (lbmReadBody(s, &chunk)) return -1; break;
 		default:
 			if (s->customSub && s->customHndl && s->customSub(chunk.chunkId))
@@ -392,7 +429,9 @@ int lbmLoad(Lbm* out)
 		.customSub = out->customSub,
 		.customHndl = out->customHndl,
 		.numCrng = 0,
-		.numCmap = 0
+		.numCcrt = 0,
+		.numCmap = 0,
+		.camgViewMode = 0
 	};
 	int res = -1;
 
@@ -434,9 +473,34 @@ int lbmLoad(Lbm* out)
 		const LbmColourRange* crng = &s.crng[i];
 		out->rangeLow[i]  = crng->low;
 		out->rangeHigh[i] = crng->high;
-		out->rangeRate[i] = crng->rate;
+		//FIXME: "One popular paint package (which?) always sets RNG_ACTIVE, but sets rate of 36 to indicate cycling not active"
+		// Try to deduce if file is a PC ILBM/PBM, as PC DPaintII does not respect the RNG_ACTIVE flag, at all
+		bool isAtari = s.bmhd.compression == VERTICAL_RLE;
+		bool isAmiga = !isAtari && s.formatId == IFF_ILBM && (s.bmhd.numPlanes == 6 || s.chunkMask & CHUNK_CAMG);
+		if (crng->flags & RNG_ACTIVE || (!isAmiga && !isAtari && crng->rate))
+			out->rangeRate[i] = crng->flags & RNG_REVERSE ? -crng->rate : crng->rate;
+		else
+			out->rangeRate[i] = 0;
 	}
 	out->numRange = s.numCrng;
+	//TODO: how should this behave if there is both CRNG and CCRT?
+	for (unsigned i = 0; i < s.numCcrt; ++i)
+	{
+		const LbmGraphicraftRange* ccrt = &s.ccrt[i];
+		out->rangeLow[i]  = ccrt->start;
+		out->rangeHigh[i] = ccrt->end;
+		if (ccrt->direction == DIR_FORWARD || ccrt->direction == DIR_BACKWARD)
+		{
+			// CCRT to CRNG rate approximation: round((0x4000/60.0) / seconds + microseconds / 1000000.0)
+			const long rate = 273066667 / ((long)ccrt->seconds * 1000000 + ccrt->microseconds);
+			out->rangeRate[i] = ccrt->direction == DIR_BACKWARD ? (int16_t)rate : (int16_t)-rate;
+		}
+		else
+		{
+			out->rangeRate[i] = 0;
+		}
+	}
+	out->numRange = MAX(out->numRange, s.numCcrt);
 
 	res = 0;
 cleanup:
