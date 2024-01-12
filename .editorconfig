@@ -1,16 +1,27 @@
 # Top level editorconfig
 root = true
 
-[*.{c,h,py}]
+[*]
+# UTF-8 Encoding
+charset = utf-8
+
 # Unix newlines
 end_of_line = lf
 insert_final_newline = true
 
-# UTF-8 Encoding
-charset = utf-8
+trim_trailing_whitespace = true
 
-# Whitespace/indentation settings
+[*.{c,h,py}]
 tab_width = 4
 indent_style = tab
 indent_size = tab
-trim_trailing_whitespace = true
+
+[{CMakeLists.txt,*.cmake}]
+tab_width = 4
+indent_style = tab
+indent_size = tab
+
+[*.sh]
+tab_width = 8
+indent_style = tab
+indent_size = tab
