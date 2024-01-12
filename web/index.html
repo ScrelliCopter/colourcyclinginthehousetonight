@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Colour Cycling in the House Tonight</title>
+    <style>
+      body {
+        background-color: #555555;
+      }
+      div#content {
+        background-color: #a0a0a0;
+        width: fit-content;
+        margin: 0 auto;
+        padding: 24px 32px;
+        border-radius: 2px;
+      }
+      div.canvasContainer {
+        text-align: center;
+      }
+      canvas#canvas {
+        background-color: #7f7f7f;
+        border: 0 none;
+        margin: 0;
+      }
+      a {
+        text-shadow: 0 1.5px #b7b7b7;
+        font-family: sans-serif;
+        font-size: 11pt;
+        text-decoration: none;
+        display: inline-block;
+        transition: color .09s ease-out, text-shadow .05s ease-out;
+      }
+      a:hover {
+        color: #5700a2;
+        text-shadow: 0 0.8px #727272;
+        text-decoration: underline;
+      }
+      .token {
+        background-color: #949494;
+        display: inline-block;
+        font-family: monospace;
+        padding: .004em .18em;
+        border-radius: 4px;
+      }
+      .key {
+        background-color: #4b4b4b;
+        display: inline-block;
+        color: #e0e0e0;
+        font-family: monospace;
+        padding: .004em .32em;
+        border-radius: 4px;
+      }
+      ol {
+          margin: 4px 0 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="content">
+      <div class="canvasContainer">
+        <canvas id="canvas"></canvas>
+      </div>
+      <noscript>The viewer needs Javascript enabled to work, you can always build the native version yourself though.</noscript>
+      <div id="loading">Ye be loadin'...</div>
+      <h3>LBM colour cycling animation viewer</h3>
+      <span class="key">P</span> - Toggle show & hide palette<br>
+      <span class="key">S</span> - Toggle show & hide update spans<br>
+      <span class="key">M</span> - Next palette cycle interpolation method, they are as follows:
+      <ol>
+        <li><span class="token">Step</span> - Disable interpolation and rotate palette in discrete steps, like Deluxe Paint.</li>
+        <li><span class="token">sRGB</span> - Naïve linear interpolation directly in sRGB colourspace.</li>
+        <li><span class="token">Linear</span> - Linear interpolation in linear space.</li>
+        <li><span class="token">HSLuv</span> - Linearly interpolate in the <a href="https://www.hsluv.org/">HSLuv</a> colour space, somewhat unstable.</li>
+        <li><span class="token">CIELAB</span> - Linearly interpolate in the <a href="https://en.wikipedia.org/wiki/CIELAB_color_space">CIELAB</a> (D65 white point) colour space.</li>
+      </ol>
+      <span class="key">[</span> and <span class="key">]</span> - Decrease/increase the cycling speed.
+      <p>
+        Source code for the viewer can be viewed on
+        <a href="https://github.com/ScrelliCopter/colourcyclinginthehousetonight">GitHub</a>,<br>
+        the viewer was cross-compiled for the web using
+        <a href="https://emscripten.org/">Emscripten</a>.
+      </p>
+    </div>
+    <script>
+      // @license magnet:?xt=urn:btih:922bd98043fa3daf4f9417e3e8fec8406b1961a3&dn=zlib.txt Zlib
+      var Module = {
+        onRuntimeInitialized: function() {
+          document.getElementById("loading").remove();
+        },
+        canvas: (function() {
+          return document.getElementById("canvas");
+        })(),
+        arguments: [ "lbm/DUMMY.LBM" ]
+      };
+      Module.canvas.addEventListener("contextmenu", function(event) { event.preventDefault(); })
+      // @license-end
+    </script>
+    <script async src=colourcyclinginthehousetonight.js></script>
+  </body>
+</html>

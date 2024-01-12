@@ -1,4 +1,4 @@
-/* main.c - (C) 2023 a dinosaur (zlib) */
+/* main.c - (C) 2023, 2024 a dinosaur (zlib) */
 #include "display.h"
 #include "audio.h"
 #include "util.h"
@@ -6,6 +6,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __EMSCRIPTEN__
+# include <emscripten.h>
+#endif
 
 
 static SizedStr title     = STR_CLEAR();
@@ -317,6 +320,44 @@ static void handleEvent(const SDL_Event* event)
 	}
 }
 
+
+static double perfScale;
+static Uint64 tick;
+
+static void mainLoop(void)
+{
+	bool realtimeNew = !BUF_EMPTY(precompSpans) || displayHasAnimation(display) || displayIsTextShown(display);
+	if (!realtime == realtimeNew)
+		tick = SDL_GetPerformanceCounter();
+	realtime = realtimeNew;
+
+	SDL_Event event;
+#ifndef EMSCRIPTEN
+	if (realtime)
+		while (SDL_PollEvent(&event) > 0)
+			handleEvent(&event);
+	else if (SDL_WaitEvent(&event))
+		handleEvent(&event);
+#else
+	while (SDL_PollEvent(&event) > 0)
+		handleEvent(&event);
+#endif
+
+	if (realtime)
+	{
+		const Uint64 lastTick = tick;
+		tick = SDL_GetPerformanceCounter();
+		const double dTick = perfScale * (double)(tick - lastTick);
+		const short speedTimescales[TIMESCALE_NUM] = { 0x26, 0x5C, 0xD7, 0x200, 0x300, 0x400, 0x600, 0x800, 0xC00, 0x1000, 0x2000, 0x4000 };
+		const double timeScale = speedTimescales[speed] * (1.0 / 0x400);
+		displayUpdateTimer(display, timeScale * dTick);
+		displayUpdateTextDisplay(display, dTick);
+		displayDamage(display);
+	}
+
+	displayRepaint(display);
+}
+
 int main(int argc, char** argv)
 {
 	if (argc != 2)
@@ -331,36 +372,15 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	const double perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
-	Uint64 tick = SDL_GetPerformanceCounter();
+	perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
+	tick = SDL_GetPerformanceCounter();
+
+#ifdef EMSCRIPTEN
+	emscripten_set_main_loop(mainLoop, 0, 1);
+#else
 	while (!quit)
-	{
-		bool realtimeNew = !BUF_EMPTY(precompSpans) || displayHasAnimation(display) || displayIsTextShown(display);
-		if (!realtime == realtimeNew)
-			tick = SDL_GetPerformanceCounter();
-		realtime = realtimeNew;
-
-		SDL_Event event;
-		if (realtime)
-			while (SDL_PollEvent(&event) > 0) handleEvent(&event);
-		else if (SDL_WaitEvent(&event))
-			handleEvent(&event);
-
-		// Timing
-		if (realtime)
-		{
-			const Uint64 lastTick = tick;
-			tick = SDL_GetPerformanceCounter();
-			const double dTick = perfScale * (double)(tick - lastTick);
-			const short speedTimescales[TIMESCALE_NUM] = { 0x26, 0x5C, 0xD7, 0x200, 0x300, 0x400, 0x600, 0x800, 0xC00, 0x1000, 0x2000, 0x4000 };
-			const double timeScale = speedTimescales[speed] * (1.0 / 0x400);
-			displayUpdateTimer(display, timeScale * dTick);
-			displayUpdateTextDisplay(display, dTick);
-			displayDamage(display);
-		}
-
-		displayRepaint(display);
-	}
+		mainLoop();
+#endif
 
 	deinit();
 	return 0;

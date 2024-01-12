@@ -1,16 +1,18 @@
-*.LBM
 *.js
+*.wasm
+*.data
 *.json
-*_PAL
+*.zip
+*.7z
 *.raw
-*.ogg
-*.mp3
 /scrape*.sh
 
+lbm/
+out/
 conv/
 srcjs/
 srcjson/
-audio/
+scrape/
 
 .idea/
 .vs/
