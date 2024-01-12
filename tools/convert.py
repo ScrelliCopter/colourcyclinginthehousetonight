@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-# convert.py - (C) 2023 a dinosaur (zlib)
+# convert.py - (C) 2023, 2024 a dinosaur (zlib)
 
 import sys
 import re
 from pathlib import Path
 import json
 import struct
-from enum import Enum
+from enum import Enum, Flag
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import BinaryIO
@@ -41,13 +41,12 @@ class Compression(Enum):
 	BYTE_RUN1 = 1
 
 
-class RangeFlag(Enum):
+class RangeFlag(Flag):
 	NONE    = 0x0
 	ACTIVE  = 0x1
 	REVERSE = 0x2
 
 
-#CycleRange = namedtuple("CycleRange", "rate flags low high")
 @dataclass(frozen=True)
 class CycleRange:
 	rate: int
@@ -243,12 +242,20 @@ def convert(inPath: Path, outDir: Path, title: str|None=None, audio: str|None=No
 	s = quote_properties.sub("\"\\1\":", s)
 	j = json.loads(s)
 
-	pix = bytes(j["pixels"])
-	size = (j["width"], j["height"])
-	flag = lambda reverse: RangeFlag.REVERSE if reverse == 2 else RangeFlag.NONE
-	crng = [CycleRange(i["rate"], flag(i["reverse"]), i["low"], i["high"]) for i in j["cycles"]]
+	def torange(range) -> CycleRange:
+		rate = range["rate"]
+		flags = RangeFlag.NONE
+		if rate != 0:
+			flags |= RangeFlag.ACTIVE
+		if range["reverse"] == 2:
+			flags |= RangeFlag.REVERSE
+		return CycleRange(rate, flags, range["low"], range["high"])
 
 	with outDir.joinpath(j["filename"]).open("wb") as out:
+		pix = bytes(j["pixels"])
+		size = (j["width"], j["height"])
+		crng = [torange(i) for i in j["cycles"]]
+
 		chunks = []
 		chunks.append(makeHeader(size))
 		chunks.append(makeChunk(IffChunk.COLOUR_MAP, b"".join(bytes(x) for x in j["colors"])))
