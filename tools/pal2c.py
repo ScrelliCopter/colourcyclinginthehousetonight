@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# scrape.py - Public domain
+# pal2c.py - Public domain
 
 import os
 import sys

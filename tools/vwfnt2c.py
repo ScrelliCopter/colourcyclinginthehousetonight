@@ -2,7 +2,6 @@
 
 # vwfnt2c.py - (C) 2023 a dinosaur (zlib)
 
-import sys
 from pathlib import Path
 from typing import TextIO
 import xml.etree.ElementTree as ET
