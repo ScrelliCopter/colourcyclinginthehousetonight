@@ -11,6 +11,8 @@
 #endif
 #include <SDL.h>
 
+#define STR(X) #X
+
 
 static const char* getVorbisError(int err)
 {
@@ -49,10 +51,7 @@ static void printError(const char* funcName, const char* errString, int err)
 		err, errString ? errString : "Unknown error");
 }
 
-static inline void printVorbisError(const char* funcName, int err)
-{
-	printError(funcName, getVorbisError(err), err);
-}
+static inline void printVorbisError(const char* funcName, int err) { printError(funcName, getVorbisError(err), err); }
 
 
 #ifdef USE_VORBISFILE

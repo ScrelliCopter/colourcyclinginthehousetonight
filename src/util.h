@@ -40,17 +40,23 @@
 # define STRUCT_PACK(NAME) struct NAME
 #endif
 
-#define WORD_ALIGN(X) ((((X) + 1) >> 1) << 1)
-
 // Endian handling
 
 #include <stdint.h>
 
-static inline uint32_t FORCE_INLINE swap32(uint32_t v)
-{ return (v << 24) | ((v << 8) & 0x00FF0000) | ((v >> 8) & 0x0000FF00) | (v >> 24); }
-
-static inline uint16_t FORCE_INLINE swap16(uint16_t v)
-{ return (v << 8) | (v >> 8); }
+#ifdef _MSC_VER
+# define swap32(X) _byteswap_ulong((X))
+# define swap16(X) _byteswap_ushort((X))
+#elif (__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || (__GNUC__ > 4)
+# define swap32(X) __builtin_bswap32((X))
+# define swap16(X) __builtin_bswap16((X))
+#elif defined(__has_builtin) && __has_builtin(__builtin_bswap32) && __has_builtin(__builtin_bswap16)
+# define swap32(X) __builtin_bswap32((X))
+# define swap16(X) __builtin_bswap16((X))
+#else
+static inline uint32_t FORCE_INLINE swap32(uint32_t v) { return v << 24 | (v & 0xFF00) << 8 | (v & 0xFF0000) >> 8 | v >> 24; }
+static inline uint16_t FORCE_INLINE swap16(uint16_t v) { return v << 8 | v >> 8; }
+#endif
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 # define SWAP_BE32(V) swap32(V)
@@ -61,9 +67,9 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v)
 #endif
 
 #if BYTE_ORDER == BIG_ENDIAN
-# define FOURCC(A, B, C, D) (((uint32_t)(D)) | ((uint32_t)(C) << 8) | ((uint32_t)(B) << 16) | ((uint32_t)(A) << 24))
+# define FOURCC(A, B, C, D) ((uint32_t)(D) | (uint32_t)(C) << 8 | (uint32_t)(B) << 16 | (uint32_t)(A) << 24)
 #else
-# define FOURCC(A, B, C, D) (((uint32_t)(A)) | ((uint32_t)(B) << 8) | ((uint32_t)(C) << 16) | ((uint32_t)(D) << 24))
+# define FOURCC(A, B, C, D) ((uint32_t)(A) | (uint32_t)(B) << 8 | (uint32_t)(C) << 16 | (uint32_t)(D) << 24)
 #endif
 
 // Maths utilities
@@ -82,10 +88,6 @@ static inline float FORCE_INLINE efmodf(float x, float d) { float r = fmodf(x, d
 
 #define LERP(A, B, X) ((A) * (1 - (X)) + (B) * (X))
 #define DEGLERP(A, B, X) efmod(LERP((A), (A) - DEG_SHORTEST((A), (B)), (X)), 360.0)
-
-// Preprocessor tools
-
-#define STR(X) #X
 
 // Sized buffers
 
