@@ -5,7 +5,7 @@ EMSDK="$HOME/Git/emsdk"
 TARGET="colourcyclinginthehousetonight"
 
 SPDXID="Zlib"
-LICENSE="../COPYING"
+LICENSE="../../COPYING"
 URL="https://github.com/ScrelliCopter/colourcyclinginthehousetonight"
 
 SOURCE=".."

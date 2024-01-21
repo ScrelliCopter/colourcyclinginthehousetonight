@@ -339,7 +339,7 @@ static void mainLoop(void)
 		handleEvent(&event);
 #else
 	while (SDL_PollEvent(&event) > 0)
-		handleEvent(&event);kk
+		handleEvent(&event);
 #endif
 
 	if (realtime)
