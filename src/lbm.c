@@ -1,4 +1,4 @@
-/* lbm.c - (C) 2023 a dinosaur (zlib) */
+/* lbm.c - (C) 2023, 2024 a dinosaur (zlib) */
 #include "lbm.h"
 #include "lbmdef.h"
 #include <stdlib.h>
@@ -11,10 +11,11 @@ typedef enum { CHUNK_BMHD = 1, CHUNK_CMAP = 1 << 1, CHUNK_CAMG = 1 << 2, CHUNK_B
 typedef struct
 {
 	const LbmIocb* iocb;
+
 	LbmCbCustomChunkSubscriber customSub;
 	LbmCbCustomChunkHandler    customHndl;
-	uint8_t* custom;
-	uint32_t customLen;
+	uint8_t*                   custom;
+	uint32_t                   customLen;
 
 	IffChunkHeader  form;
 	uint32_t        formatId;
@@ -24,12 +25,16 @@ typedef struct
 	Colour          cmap[LBM_PAL_SIZE];
 	uint32_t        camgViewMode;
 	unsigned        numCmap;
-	LbmColourRange  crng[LBM_MAX_CRNG];
-	unsigned        numCcrt;
+
+	unsigned            numCrng;
+	unsigned            numDrng;
+	unsigned            numCcrt;
+	LbmColourRange      crng[LBM_MAX_CRNG];
+	LbmExtendedRange    drng[LBM_MAX_DRNG];
 	LbmGraphicraftRange ccrt[LBM_MAX_CCRT];
-	unsigned        numCrng;
-	uint8_t*        body;
-	unsigned        bodyLen;
+
+	uint8_t* body;
+	unsigned bodyLen;
 
 } LbmReaderState;
 
@@ -156,6 +161,50 @@ static int lbmReadColourRange(LbmReaderState* s, const IffChunkHeader* chunk)
 
 	s->crng[s->numCrng++] = crng;
 	IO_CHUNK_SKIP(CRNG_SIZE);
+	return 0;
+}
+
+static int lbmReadExtendedRange(LbmReaderState* s, const IffChunkHeader* chunk)
+{
+	if (!(s->chunkMask & CHUNK_BMHD))
+		return -1;
+	if (chunk->chunkLen < DRNG_HEAD_SIZE)
+		return -1;
+	if (s->numDrng == LBM_MAX_DRNG)
+		return -1;
+
+	LbmExtendedRange drng;
+	IO_READ_UBYTE(drng.min);
+	IO_READ_UBYTE(drng.max);
+	IO_READ_WORD( drng.rate);
+	IO_READ_WORD( drng.flags);
+	IO_READ_UBYTE(drng.numColour);
+	IO_READ_UBYTE(drng.numIndex);
+	if (drng.numColour * DRNG_COLOUR_SIZE + drng.numIndex * DRNG_INDEX_SIZE > chunk->chunkLen)
+		return -1;
+
+	s->drng[s->numDrng++] = drng;
+	unsigned long read = DRNG_HEAD_SIZE;
+
+	//printf("DRNG: %u-%u rate: %d active: %d\n", drng.min, drng.max, drng.rate, drng.flags & RNG_ACTIVE);
+	for (int i = 0; i < drng.numColour; ++i)
+	{
+		uint8_t cell, triplet[3];
+		IO_READ_UBYTE(cell);
+		IO_READ(triplet, 3, sizeof(uint8_t));
+		//printf("Triplet[%u]: %u %u %u\n", cell, triplet[0], triplet[1], triplet[2]);
+		read += 4;
+	}
+	for (int i = 0; i < drng.numIndex; ++i)
+	{
+		uint8_t cell, index;
+		IO_READ_UBYTE(cell);
+		IO_READ_UBYTE(index);
+		//printf("index[%u]: %u\n", cell, index);
+		read += 2;
+	}
+
+	IO_CHUNK_SKIP(read);
 	return 0;
 }
 
@@ -387,6 +436,7 @@ static int lbmReadSections(LbmReaderState* s)
 		case IFF_CMAP: if (lbmReadColourMap(s, &chunk)) return -1; break;
 		case IFF_CAMG: if (lbmReadAmiga(s, &chunk)) return -1; break;
 		case IFF_CRNG: if (lbmReadColourRange(s, &chunk)) return -1; break;
+		case IFF_DRNG: if (lbmReadExtendedRange(s, &chunk)) return -1; break;
 		case IFF_CCRT: if (lbmReadGraphicraftRange(s, &chunk)) return -1; break;
 		case IFF_BODY: if (lbmReadBody(s, &chunk)) return -1; break;
 		default:
@@ -429,6 +479,7 @@ int lbmLoad(Lbm* out)
 		.customSub = out->customSub,
 		.customHndl = out->customHndl,
 		.numCrng = 0,
+		.numDrng = 0,
 		.numCcrt = 0,
 		.numCmap = 0,
 		.camgViewMode = 0

@@ -10,6 +10,7 @@
 #define IFF_CMAP FOURCC('C', 'M', 'A', 'P')
 #define IFF_CAMG FOURCC('C', 'A', 'M', 'G')
 #define IFF_CRNG FOURCC('C', 'R', 'N', 'G')
+#define IFF_DRNG FOURCC('D', 'R', 'N', 'G')
 #define IFF_CCRT FOURCC('C', 'C', 'R', 'T')
 #define IFF_BODY FOURCC('B', 'O', 'D', 'Y')
 
@@ -48,7 +49,7 @@ enum
 	CAMG_SUPERHR =   0x20,  // SUPERHIRES
 	CAMG_PFBA    =   0x40,  // PFBA
 	CAMG_EHB     =   0x80,  // EXTRA_HALFBRITE
-	CAMG_GLAUDIO =  0x100,  // CAMG_GLAUDIO
+	CAMG_GLAUDIO =  0x100,  // GENLOCK_AUDIO
 	CAMG_DUALPF  =  0x400,  // DUALPF
 	CAMG_HAM     =  0x800,  // HAM
 	CAMG_EXTMODE = 0x1000,  // EXTENDED_MODE
@@ -58,17 +59,28 @@ enum
 };
 #define CAMG_SIZE 4
 
-typedef int16_t CrngFlags;
-enum { RNG_ACTIVE  = 1, RNG_REVERSE = 2 };
+typedef int16_t RangeFlags;
+enum { RNG_ACTIVE = 1, RNG_REVERSE = 2, RNG_DP_RESERVED = 4 };
 
 typedef struct
 {
-	int16_t   pad1;
-	int16_t   rate;
-	CrngFlags flags;
-	uint8_t   low, high;
+	int16_t    pad1;
+	int16_t    rate;
+	RangeFlags flags;
+	uint8_t    low, high;
 } LbmColourRange;
 #define CRNG_SIZE 8
+
+typedef struct
+{
+	uint8_t    min, max;
+	int16_t    rate;
+	RangeFlags flags;
+	uint8_t    numColour, numIndex;
+} LbmExtendedRange;
+#define DRNG_HEAD_SIZE   8
+#define DRNG_COLOUR_SIZE 4
+#define DRNG_INDEX_SIZE  2
 
 typedef int16_t CcrtDirection;
 enum { DIR_NONE = 0, DIR_FORWARD = 1, DIR_BACKWARD = -1 };
@@ -76,9 +88,9 @@ enum { DIR_NONE = 0, DIR_FORWARD = 1, DIR_BACKWARD = -1 };
 typedef struct
 {
 	CcrtDirection direction;
-	uint8_t start, end;
-	int32_t seconds, microseconds;
-	int16_t pad;
+	uint8_t       start, end;
+	int32_t       seconds, microseconds;
+	int16_t       pad;
 } LbmGraphicraftRange;
 #define CCRT_SIZE 14
 

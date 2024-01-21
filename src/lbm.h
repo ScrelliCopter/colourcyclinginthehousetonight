@@ -73,6 +73,7 @@ typedef uint32_t Colour;
 #define LBM_PAL_SIZE 256
 #define LBM_MAX_CRNG  16
 #define LBM_MAX_CCRT LBM_MAX_CRNG
+#define LBM_MAX_DRNG LBM_MAX_CRNG
 
 typedef struct Lbm
 {
