@@ -1,0 +1,5 @@
+[package]
+name = "lbminfo"
+version = "0.0.1"
+edition = "2021"
+description = "Tool to parse and display information about IFF ILBM files"

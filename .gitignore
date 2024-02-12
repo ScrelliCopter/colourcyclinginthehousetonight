@@ -16,6 +16,7 @@ scrape/
 
 .idea/
 .vs/
+.vscode/
 cmake-build-*/
 build/
 
@@ -28,3 +29,7 @@ Thumbs.db
 
 *.pyc
 __pycache__/
+
+
+**/target/
+**/Cargo.lock
