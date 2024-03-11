@@ -6,13 +6,14 @@
 
 mod chunk;
 mod lbm;
+mod reader;
 mod fsext;
 mod info;
 mod check;
 mod optionset;
 
 use std::{env, fs, io};
-use std::path::{Path};
+use std::path::Path;
 use std::process::exit;
 use crate::info::LBMInfo;
 use crate::lbm::LBM;

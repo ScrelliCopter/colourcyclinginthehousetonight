@@ -4,7 +4,7 @@
 
 use std::{fs, io};
 use std::io::{Error, Read};
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 
 
@@ -13,12 +13,12 @@ pub(crate) struct ColourMap { pub(crate) entries: Vec<[u8; 3]> }
 
 impl IFFChunk for ColourMap
 {
-	fn read(file: &mut fs::File, size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
 		let mut palette = vec![[0u8; 3]; size / 3];
 		let mut bytesRead = 0;
 		for i in &mut palette { bytesRead += file.read(i)?; }
-		Ok((Self { entries: palette }, bytesRead))
+		Ok((ChunkReaders::ColourMap(Self { entries: palette }), bytesRead))
 	}
 
 	const ID: [u8; 4] = *b"CMAP";
@@ -30,9 +30,9 @@ pub(crate) struct Grab { pub(crate) point: (i16, i16) }
 
 impl IFFChunk for Grab
 {
-	fn read(file: &mut fs::File, _size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, _size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
-		Ok((Grab { point: (file.read_i16be()?, file.read_i16be()?) },
+		Ok((ChunkReaders::Grab(Self { point: (file.read_i16be()?, file.read_i16be()?) }),
 			Self::SIZE as usize))
 	}
 
@@ -48,9 +48,9 @@ pub(crate) struct Body
 
 impl IFFChunk for Body
 {
-	fn read(_file: &mut fs::File, size: usize) -> Result<(Self, usize), Error>
+	fn read(_file: &mut fs::File, size: usize) -> Result<(ChunkReaders, usize), Error>
 	{
-		return Ok((Self { len: size - 4 }, Self::SIZE as usize))
+		return Ok((ChunkReaders::Body(Self { len: size - 4 }), Self::SIZE as usize))
 	}
 
 	const ID: [u8; 4] = *b"BODY";

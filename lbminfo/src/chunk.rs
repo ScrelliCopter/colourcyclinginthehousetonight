@@ -14,6 +14,7 @@ pub(crate) mod custom;
 pub(crate) mod nonstandard;
 
 use std::{io, fs};
+use crate::lbm::LBMError;
 
 /* TODO:
 
@@ -54,12 +55,46 @@ unknown:
 */
 
 
+pub(crate) enum ChunkReaders
+{
+	AnnotationText(strings::AnnotationText),
+	NameText(strings::NameText),
+	AuthorText(strings::AuthorText),
+	CopyrightText(strings::CopyrightText),
+	GenericText(strings::GenericText),
+	LBMHeader(header::LBMHeader),
+	ColourMap(standard::ColourMap),
+	Grab(standard::Grab),
+	CommodoreAmiga(amiga::CommodoreAmiga),
+	CycleRange(range::CycleRange),
+	CycleInfo(graphicraft::CycleInfo),
+	EnhancedColourCycle(range::EnhancedColourCycle),
+	DeluxePaintPrivateState(dpaint::DeluxePaintPrivateState),
+	DeluxePaintPrivateExtended(dpaint::DeluxePaintPrivateExtended),
+	DeluxePaintPerspective(dpaint::DeluxePaintPerspective),
+	DeluxePaintThumbnail(dpaint::DeluxePaintThumbnail),
+	DotsPerInch(nonstandard::DotsPerInch),
+	UpdateSpans(custom::UpdateSpans),
+	Body(standard::Body),
+	PhotonPrivate(private::PhotonPrivate),
+	PhotonPrivateScreens(private::PhotonPrivateScreens),
+}
+
+
 pub(crate) trait IFFChunk
 {
-	fn read(file: &mut fs::File, size: usize) -> io::Result<(Self, usize)> where Self: Sized;
+	fn read(file: &mut fs::File, size: usize) -> io::Result<(ChunkReaders, usize)>;
 
 	const ID: [u8; 4];
 	const SIZE: u32;
+
+	fn tryReadChunk(id: &[u8; 4], size: usize, file: &mut fs::File)
+		-> Result<Option<(ChunkReaders, usize)>, LBMError>
+	{
+		if !id.eq(&Self::ID) { return Ok(None) }
+		if size < Self::SIZE as usize { return Err(LBMError::BadChunk) }
+		Ok(Some(Self::read(file, size)?))
+	}
 }
 
 
@@ -71,9 +106,9 @@ macro_rules! private_chunk
 
 		impl crate::chunk::IFFChunk for $t
 		{
-			fn read(_file: &mut std::fs::File, _size: usize) -> std::io::Result<(Self, usize)>
+			fn read(_file: &mut std::fs::File, _size: usize) -> std::io::Result<(super::ChunkReaders, usize)>
 			{
-				Ok(($t {}, Self::SIZE as usize))
+				Ok((super::ChunkReaders::$t($t {}), Self::SIZE as usize))
 			}
 
 			const ID: [u8; 4] = *$fourcc;

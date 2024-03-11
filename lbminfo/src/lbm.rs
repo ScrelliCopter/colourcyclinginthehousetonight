@@ -15,6 +15,7 @@ use crate::chunk::strings::{AnnotationText, AuthorText, CopyrightText, GenericTe
 use crate::chunk::nonstandard::DotsPerInch;
 use crate::chunk::IFFChunk;
 use crate::fsext::FileExt;
+use crate::reader::LBMReader;
 
 
 // https://web.archive.org/web/20070911223155/http://www.szonye.com/bradd/iff.html
@@ -42,26 +43,6 @@ pub(crate) struct LBM
 	pub(crate) body: Option<Body>
 }
 
-fn tryReadChunk<T: IFFChunk>(id: &[u8; 4], size: usize, file: &mut fs::File)
-	-> Result<Option<(T, usize)>, LBMError>
-{
-	if !id.eq(&T::ID) { return Ok(None) }
-	if size < T::SIZE as usize { return Err(LBMError::BadChunk) }
-	Ok(Some(T::read(file, size)?))
-}
-
-macro_rules! tryPut
-{
-	($out:ident, $in:expr) =>
-	{
-		if $out.is_some()
-		{
-			return Err(LBMError::ChunkConflict)
-		}
-		$out = Option::from($in);
-	};
-}
-
 impl LBM
 {
 	pub(crate) fn read(path: &path::Path) -> Result<LBM, LBMError>
@@ -82,26 +63,7 @@ impl LBM
 			return Err(LBMError::BadType)
 		}
 
-		let mut annotation = None;
-		let mut name = None;
-		let mut author = None;
-		let mut copyright = None;
-		let mut header = None;
-		let mut palette = None;
-		let mut grab = None;
-		let mut amiga = None;
-		let mut ranges = vec!();
-		let mut cycleinfo = vec!();
-		let mut enhanced = vec!();
-		let mut text = None;
-		let mut dppv = None;
-		let mut dpps = None;
-		let mut dpxt = None;
-		let mut tiny = None;
-		let mut dpi = None;
-		let mut spans = None;
-		let mut body = None;
-
+		let mut lbm = LBMReader::default();
 		let mut bytesRead: usize = 4;
 		while bytesRead < formSize
 		{
@@ -110,112 +72,15 @@ impl LBM
 			let realSize: usize = chunkSize  + (chunkSize & 0x1);  // Round up to word boundaries
 
 			// Read all chunks in the IFF FORM
-			let chunkRead: usize;
-			if let Some((chunk, size)) = tryReadChunk::<AnnotationText>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(annotation, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<NameText>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(name, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<AuthorText>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(author, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<CopyrightText>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(copyright, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<GenericText>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(text, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<LBMHeader>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(header, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<ColourMap>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(palette, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<Grab>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(grab, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<CommodoreAmiga>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(amiga, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<CycleRange>(&chunkId, chunkSize, &mut file)?
-			{
-				ranges.push(chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<CycleInfo>(&chunkId, chunkSize, &mut file)?
-			{
-				cycleinfo.push(chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<EnhancedColourCycle>(&chunkId, chunkSize, &mut file)?
-			{
-				enhanced.push(chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<DeluxePaintPrivateState>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(dpps, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<DeluxePaintPrivateExtended>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(dpxt, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<DeluxePaintPerspective>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(dppv, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<DeluxePaintThumbnail>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(tiny, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<DotsPerInch>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(dpi, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<UpdateSpans>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(spans, chunk);
-				chunkRead = size;
-			}
-			else if let Some((chunk, size)) = tryReadChunk::<Body>(&chunkId, chunkSize, &mut file)?
-			{
-				tryPut!(body, chunk);
-				chunkRead = size;
-			}
-			else
+			let chunkRead = lbm.readChunk(&chunkId, chunkSize, &mut file)?.unwrap_or_else(||
 			{
 				// Skip unrecognised chunks
 				if ![b"JUNK", b"SNFO", b"OGGV", b"SNFO"].contains(&&chunkId)
 				{
 					eprintln!("Unknown chunk: \"{}\"", String::from_utf8_lossy(&chunkId));
 				}
-				chunkRead = 0;
-			}
-
+				return 0;
+			});
 			if realSize > chunkRead
 			{
 				file.seek(io::SeekFrom::Current((realSize - chunkRead) as i64))?;
@@ -225,17 +90,17 @@ impl LBM
 
 		Ok(LBM {
 			iffType,
-			annotation, name, author, copyright,
-			header: header.ok_or(LBMError::MissingHeader)?,
-			palette,
-			grab,
-			amiga,
-			ranges, cycleinfo, enhanced,
-			text,
-			dpps, dpxt, dppv, tiny,
-			spans,
-			dpi,
-			body })
+			annotation: lbm.annotation, name: lbm.name, author: lbm.author, copyright: lbm.copyright,
+			header: lbm.header.ok_or(LBMError::MissingHeader)?,
+			palette: lbm.palette,
+			grab: lbm.grab,
+			amiga: lbm.amiga,
+			ranges: lbm.ranges, cycleinfo: lbm.cycleinfo, enhanced: lbm.enhanced,
+			text: lbm.text,
+			dpps: lbm.dpps, dpxt: lbm.dpxt, dppv: lbm.dppv, tiny: lbm.tiny,
+			spans: lbm.spans,
+			dpi: lbm.dpi,
+			body: lbm.body })
 	}
 }
 

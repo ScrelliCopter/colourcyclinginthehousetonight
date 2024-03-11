@@ -2,10 +2,8 @@
  * 2024 (c) a dinosaur
  * SPDX-License-Identifier: Zlib */
 
-use std::fmt::{Display, Formatter};
-use std::fs::File;
-use std::io::Error;
-use crate::chunk::IFFChunk;
+use std::{fmt, fs, io};
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 
 
@@ -21,9 +19,9 @@ pub(crate) struct CycleInfo
 
 impl IFFChunk for CycleInfo
 {
-	fn read(file: &mut File, _size: usize) -> Result<(Self, usize), Error>
+	fn read(file: &mut fs::File, _size: usize) -> Result<(ChunkReaders, usize), io::Error>
 	{
-		Ok((Self {
+		Ok((ChunkReaders::CycleInfo(Self {
 			direction: Direction(file.read_i16be()?),
 			start:     file.read_u8()?,
 			end:       file.read_u8()?,
@@ -31,7 +29,7 @@ impl IFFChunk for CycleInfo
 				seconds:      file.read_i32be()?,
 				microseconds: file.read_i32be()? },
 			pad: file.read_i16be()?,
-		}, Self::SIZE as usize))
+		}), Self::SIZE as usize))
 	}
 	const ID: [u8; 4] = *b"CCRT";
 	const SIZE: u32 = 14;
@@ -48,9 +46,9 @@ impl Direction
 	const BACKWARD: Direction = Direction(-1);
 }
 
-impl Display for Direction
+impl fmt::Display for Direction
 {
-	fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result
+	fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(fmt, "{}", match *self
 		{

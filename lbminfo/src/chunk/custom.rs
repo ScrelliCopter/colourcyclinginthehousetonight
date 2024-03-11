@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Zlib */
 
 use std::{fs, io};
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 
 
@@ -17,7 +17,7 @@ pub(crate) struct UpdateSpans
 
 impl IFFChunk for UpdateSpans
 {
-	fn read(file: &mut fs::File, _size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, _size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
 		let startOffset = file.read_i16be()?;
 		let numSpans = file.read_i16be()?;
@@ -33,7 +33,7 @@ impl IFFChunk for UpdateSpans
 			span.innerRight = file.read_i16be()?;
 			bytesRead += 8;
 		}
-		Ok((Self { startOffset, numSpans, spans }, bytesRead))
+		Ok((ChunkReaders::UpdateSpans(Self { startOffset, numSpans, spans }), bytesRead))
 	}
 
 	const ID: [u8; 4] = *b"SPAN";

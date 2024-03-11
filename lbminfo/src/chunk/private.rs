@@ -2,7 +2,7 @@
  * 2024 (c) a dinosaur
  * SPDX-License-Identifier: Zlib */
 
-use crate::chunk::private_chunk;
+use super::private_chunk;
 
 
 // https://wiki.amigaos.net/wiki/IFF_FORM_and_Chunk_Registry

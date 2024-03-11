@@ -4,7 +4,7 @@
 
 use std::{fmt, fs, io};
 use std::io::Read;
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 
 
 // "IFF EA 85 generic author/name/copyright chunk(s)"
@@ -18,9 +18,9 @@ macro_rules! implementTextChunk
 
 		impl IFFChunk for $t
 		{
-			fn read(file: &mut fs::File, size: usize) -> io::Result<(Self, usize)>
+			fn read(file: &mut fs::File, size: usize) -> io::Result<(ChunkReaders, usize)>
 			{
-				Ok(($t(PlatformText::from(file, size)?), size))
+				Ok((ChunkReaders::$t($t(PlatformText::from(file, size)?)), size))
 			}
 
 			const ID: [u8; 4] = *$id;

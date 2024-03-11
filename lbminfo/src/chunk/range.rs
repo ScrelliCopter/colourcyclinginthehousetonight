@@ -4,7 +4,7 @@
 
 use std::{fs, io};
 use std::io::Read;
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 use crate::optionset::{optionset, optionset_custom_display};
 
@@ -22,15 +22,15 @@ pub(crate) struct CycleRange
 
 impl IFFChunk for CycleRange
 {
-	fn read(file: &mut fs::File, _size: usize) -> Result<(Self, usize), io::Error>
+	fn read(file: &mut fs::File, _size: usize) -> Result<(ChunkReaders, usize), io::Error>
 	{
-		Ok((Self {
+		Ok((ChunkReaders::CycleRange(Self {
 			pad1: file.read_i16be()?,
 			rate: file.read_i16be()?,
 			flags: RangeFlags(file.read_i16be()?),
 			low: file.read_u8()?,
 			high: file.read_u8()?
-		}, Self::SIZE as usize))
+		}), Self::SIZE as usize))
 	}
 	const ID: [u8; 4] = *b"CRNG";
 	const SIZE: u32 = 8;
@@ -93,7 +93,7 @@ pub(crate) struct EnhancedFade
 
 impl IFFChunk for EnhancedColourCycle
 {
-	fn read(file: &mut fs::File, size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
 		let min     = file.read_u8()?;
 		let max     = file.read_u8()?;
@@ -153,7 +153,7 @@ impl IFFChunk for EnhancedColourCycle
 			fadeExt = Some(EnhancedColourCycleFadeExt { numFade, fadePad, fadeRange })
 		}
 
-		Ok((Self { min, max, rate, flags, numTrue, numRegs, trueRange, regsRange, fadeExt }, bytesRead))
+		Ok((ChunkReaders::EnhancedColourCycle(Self { min, max, rate, flags, numTrue, numRegs, trueRange, regsRange, fadeExt }), bytesRead))
 	}
 
 	const ID: [u8; 4] = *b"DRNG";
@@ -174,14 +174,6 @@ optionset!
 		FADE        = 0b1000;
 	}
 }
-
-/*
-impl RangeFlags
-{
-	const FLAGS: [RangeFlags; 4] = [
-		Self::ACTIVE, Self::REVERSE, Self::DP_RESERVED, Self::FADE];
-}
-*/
 
 optionset_custom_display!
 {

@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Zlib */
 
 use std::{fmt, fs, io};
-use std::fmt::{Display, Formatter};
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 
 
@@ -24,9 +23,9 @@ pub(crate) struct LBMHeader
 
 impl IFFChunk for LBMHeader
 {
-	fn read(file: &mut fs::File, _size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, _size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
-		Ok((Self {
+		Ok((ChunkReaders::LBMHeader(Self {
 			size:        (file.read_u16be()?, file.read_u16be()?),
 			offset:      (file.read_i16be()?, file.read_i16be()?),
 			numPlanes:   file.read_u8()?,
@@ -36,7 +35,7 @@ impl IFFChunk for LBMHeader
 			transparent: file.read_u16be()?,
 			aspect:      (file.read_u8()?, file.read_u8()?),
 			pageSize:    (file.read_i16be()?, file.read_i16be()?)
-		}, Self::SIZE as usize))
+		}), Self::SIZE as usize))
 	}
 
 	const ID: [u8; 4] = *b"BMHD";
@@ -56,9 +55,9 @@ impl Mask
 
 impl Default for Mask { fn default() -> Self { Mask::NONE } }
 
-impl Display for Mask
+impl fmt::Display for Mask
 {
-	fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result
+	fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(fmt, "{}", match *self
 		{
@@ -83,9 +82,9 @@ impl Compression
 
 impl Default for Compression { fn default() -> Self { Compression::NONE } }
 
-impl Display for Compression
+impl fmt::Display for Compression
 {
-	fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result
+	fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
 		write!(fmt, "{}", match *self
 		{

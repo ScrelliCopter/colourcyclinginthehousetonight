@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Zlib */
 
 use std::{fmt, fs, io};
-use crate::chunk::{IFFChunk, private_chunk};
+use super::{ChunkReaders, IFFChunk, private_chunk};
 use crate::fsext::FileExt;
 
 
@@ -32,9 +32,9 @@ pub(crate) struct DeluxePaintPerspective
 
 impl IFFChunk for DeluxePaintPerspective
 {
-	fn read(file: &mut fs::File, _size: usize) -> Result<(Self, usize), io::Error>
+	fn read(file: &mut fs::File, _size: usize) -> Result<(ChunkReaders, usize), io::Error>
 	{
-		Ok((Self {
+		Ok((ChunkReaders::DeluxePaintPerspective(Self {
 			rotType:         RotationType(file.read_i16be()?),
 			angle:           (file.read_i16be()?, file.read_i16be()?, file.read_i16be()?),
 			perspDepth:      file.read_i32be()?,
@@ -49,7 +49,7 @@ impl IFFChunk for DeluxePaintPerspective
 				(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
 				 file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
 				 file.read_i32be()?, file.read_i32be()?, file.read_i32be()?)
-		}, Self::SIZE as usize))
+		}), Self::SIZE as usize))
 	}
 
 	const ID: [u8; 4] = *b"DPPV";
@@ -99,12 +99,12 @@ pub(crate) struct DeluxePaintThumbnail
 
 impl IFFChunk for DeluxePaintThumbnail
 {
-	fn read(file: &mut fs::File, size: usize) -> Result<(Self, usize), io::Error>
+	fn read(file: &mut fs::File, size: usize) -> Result<(ChunkReaders, usize), io::Error>
 	{
 		let chunk = Self {
 			size: (file.read_u16be()?, file.read_u16be()?),
 			len: size - 4 };
-		return Ok((chunk, Self::SIZE as usize))
+		return Ok((ChunkReaders::DeluxePaintThumbnail(chunk), Self::SIZE as usize))
 	}
 
 	const ID: [u8; 4] = *b"TINY";

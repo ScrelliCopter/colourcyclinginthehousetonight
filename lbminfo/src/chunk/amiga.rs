@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Zlib */
 
 use std::{fs, io};
-use crate::chunk::IFFChunk;
+use super::{ChunkReaders, IFFChunk};
 use crate::fsext::FileExt;
 use crate::optionset::{optionset, optionset_custom_display};
 
@@ -13,9 +13,10 @@ pub(crate) struct CommodoreAmiga { pub(crate) viewport: AmigaViewportFlags }
 
 impl IFFChunk for CommodoreAmiga
 {
-	fn read(file: &mut fs::File, _size: usize) -> io::Result<(Self, usize)>
+	fn read(file: &mut fs::File, _size: usize) -> io::Result<(ChunkReaders, usize)>
 	{
-		Ok((Self { viewport: AmigaViewportFlags(file.read_u32be()?) }, Self::SIZE as usize))
+		Ok((ChunkReaders::CommodoreAmiga(Self { viewport: AmigaViewportFlags(file.read_u32be()?) }),
+			Self::SIZE as usize))
 	}
 
 	const ID: [u8; 4] = *b"CAMG";
