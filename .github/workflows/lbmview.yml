@@ -20,7 +20,7 @@ jobs:
       matrix:
         cfg:
         - { name: "MacOS-Universal", os: macos-latest, cc: clang,
-            config: "-DCMAKE_OSX_ARCHITECTURES=\"arm64;x86_64\" -DCMAKE_FRAMEWORK_PATH:PATH=/Volumes/SDL2 -DCMAKE_BUILD_RPATH=/Library/Frameworks" }
+            config: "-DUSE_VORBISFILE:BOOL=OFF -DCMAKE_OSX_ARCHITECTURES=\"arm64;x86_64\" -DCMAKE_FRAMEWORK_PATH:PATH=/Volumes/SDL2 -DCMAKE_BUILD_RPATH=/Library/Frameworks" }
         - { name: "MSVC-Win64", os: windows-latest, cc: cl, arch: x64 }
         - { name: "MinGW-Win64", os: windows-latest, cc: gcc }
         - { name: "GCC-Linux-AMD64", os: ubuntu-latest, cc: gcc }

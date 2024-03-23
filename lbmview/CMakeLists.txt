@@ -3,6 +3,7 @@ set(NAME colourcyclinginthehousetonight)
 project(${NAME} LANGUAGES C)
 
 option(ENABLE_ASAN "Enable address sanitiser" OFF)
+option(USE_VORBISFILE "Opportunistically use Vorbisfile if available" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -15,7 +16,9 @@ if (EMSCRIPTEN)
 else()
 	find_package(SDL2 REQUIRED)
 endif()
-find_package(Vorbisfile)
+if (USE_VORBISFILE)
+	find_package(Vorbisfile)
+endif()
 
 if (NOT CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 	include(CheckSymbolExists)
@@ -48,7 +51,7 @@ target_compile_definitions(${NAME} PRIVATE
 if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND SDL2_FRAMEWORK_PATH MATCHES "^/Library/Frameworks/")
 	set_property(TARGET ${NAME} PROPERTY BUILD_RPATH "/Library/Frameworks")
 endif()
-if (TARGET Vorbis::vorbisfile)
+if (USE_VORBISFILE AND TARGET Vorbis::vorbisfile)
 	target_compile_definitions(${NAME} PRIVATE USE_VORBISFILE)
 	target_link_libraries(${NAME} Vorbis::vorbisfile)
 else()
