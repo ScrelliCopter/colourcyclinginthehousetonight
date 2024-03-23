@@ -46,7 +46,7 @@ target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>
 	$<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
 if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND SDL2_FRAMEWORK_PATH MATCHES "^/Library/Frameworks/")
-	target_link_options(${NAME} PRIVATE "-Wl,-rpath,/Library/Frameworks")
+	set_property(TARGET ${NAME} PROPERTY BUILD_RPATH "/Library/Frameworks")
 endif()
 if (TARGET Vorbis::vorbisfile)
 	target_compile_definitions(${NAME} PRIVATE USE_VORBISFILE)
@@ -60,6 +60,7 @@ target_link_libraries(${NAME}
 	$<$<C_COMPILER_ID:Clang,GNU>:m>)
 target_compile_options(${NAME} PRIVATE
 	$<$<C_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -pedantic -Wno-unused-parameter>
+	$<$<C_COMPILER_ID:AppleClang,Clang>:-Weverything -Wno-declaration-after-statement -Wno-padded>
 	$<$<C_COMPILER_ID:MSVC>:/W4 /wd4100>)
 if (ENABLE_ASAN)
 	target_compile_options(${NAME} PRIVATE

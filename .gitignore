@@ -17,6 +17,7 @@ scrape/
 .idea/
 .vs/
 .vscode/
+xcode/
 cmake-build-*/
 build/
 
