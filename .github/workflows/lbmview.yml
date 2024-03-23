@@ -1,0 +1,69 @@
+name: lbmview
+
+on:
+  push:
+    paths:
+    - "lbmview/src/**"
+    - "lbmview/cmake/**"
+    - "lbmview/CMakeLists.txt"
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ${{matrix.cfg.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+        - { name: "MacOS-Universal", os: macos-latest, cc: clang,
+            config: "-DCMAKE_OSX_ARCHITECTURES=\"arm64;x86_64\" -DCMAKE_FRAMEWORK_PATH:PATH=/Volumes/SDL2 -DCMAKE_BUILD_RPATH=/Library/Frameworks" }
+        - { name: "MSVC-Win64", os: windows-latest, cc: cl, arch: x64 }
+        - { name: "MinGW-Win64", os: windows-latest, cc: gcc }
+        - { name: "GCC-Linux-AMD64", os: ubuntu-latest, cc: gcc }
+        - { name: "Clang-Linux-AMD64", os: ubuntu-latest, cc: clang }
+
+    env:
+      ARTIFACT: "${{format('colourcyclinginthehousetonight{0}', startsWith(matrix.cfg.os, 'windows') && '.exe' || '')}}"
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: lukka/get-cmake@latest
+    - uses: TheMrMilchmann/setup-msvc-dev@v3
+      if: ${{matrix.cfg.cc == 'cl'}}
+      with:
+        arch: ${{matrix.cfg.arch}}
+
+    - name: Setup SDL (MacOS)
+      if: ${{startsWith(matrix.cfg.os, 'macos')}}
+      run: |
+        curl -Lo SDL.dmg https://github.com/libsdl-org/SDL/releases/download/release-2.30.1/SDL2-2.30.1.dmg
+        hdiutil attach SDL.dmg
+    - name: Setup SDL (Windows)
+      if: ${{startsWith(matrix.cfg.os, 'windows')}}
+      uses: libsdl-org/setup-sdl@main
+      with:
+        install-linux-dependencies: true
+        version: 2-latest
+    - name: Setup SDL & Vorbisfile (Linux)
+      if: ${{startsWith(matrix.cfg.os, 'ubuntu')}}
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: libsdl2-dev libvorbis-dev
+        version: 1.0
+
+    - name: Configure CMake
+      run: >
+        cmake -S lbmview -B build -G Ninja
+        -DCMAKE_C_COMPILER=${{matrix.cfg.cc}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ${{matrix.cfg.config}}
+
+    - name: Build
+      run: cmake --build build --verbose
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "colourcyclinginthehousetonight-${{matrix.cfg.name}}"
+        path: "build/${{env.ARTIFACT}}"

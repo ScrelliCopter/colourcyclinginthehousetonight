@@ -1,0 +1,51 @@
+name: lbminfo
+
+on:
+  push:
+    paths: [ "lbminfo/**" ]
+  pull_request:
+    paths: [ "lbminfo/**" ]
+    branches: [ "main" ]
+
+env:
+  WORKDIR: lbminfo
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{matrix.os.host}}
+    strategy:
+      matrix:
+        os:
+        - { host: macos-latest, target: apple-darwin }
+        - { host: windows-latest, target: pc-windows-msvc }
+        - { host: ubuntu-latest, target: unknown-linux-gnu }
+        arch:
+        - "x86_64"
+        - "aarch64"
+        exclude:
+          - { os: { target: pc-windows-msvc }, arch: "aarch64" }
+          - { os: { target: unknown-linux-gnu }, arch: "aarch64" }
+    env:
+      TARGET: "${{matrix.arch}}-${{matrix.os.target}}"
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        targets: "${{env.TARGET}}"
+
+    - name: Build
+      working-directory: "${{env.WORKDIR}}"
+      run: cargo build --verbose --release --target "${{env.TARGET}}"
+
+    - name: Run tests
+      if: ${{env.TARGET != 'aarch64-apple-darwin'}}
+      working-directory: "${{env.WORKDIR}}"
+      run: cargo test --verbose --release --target "${{env.TARGET}}"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "lbminfo-${{env.TARGET}}"
+        path: "${{env.WORKDIR}}/target/${{env.TARGET}}/release/lbminfo${{startsWith(matrix.os.host, 'windows') && '.exe' || ''}}"
