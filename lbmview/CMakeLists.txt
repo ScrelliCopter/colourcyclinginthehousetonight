@@ -24,10 +24,6 @@ if (NOT CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 	include(CheckSymbolExists)
 	check_symbol_exists(ftello "stdio.h" HAVE_FTELLO)
 	check_symbol_exists(fseeko "stdio.h" HAVE_FSEEKO)
-
-	include(CheckIncludeFile)
-	check_include_file("endian.h" HAVE_ENDIAN_H)
-	check_include_file("arm/endian.h" HAVE_ARM_ENDIAN_H)
 endif()
 
 add_executable(${NAME}
@@ -45,8 +41,6 @@ set_property(TARGET ${NAME} PROPERTY C_STANDARD 99)
 target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_FTELLO}>:HAVE_FTELLO>
 	$<$<BOOL:${HAVE_FSEEKO}>:HAVE_FSEEKO>
-	$<$<BOOL:${HAVE_ENDIAN_H}>:HAVE_ENDIAN_H>
-	$<$<BOOL:${HAVE_ARM_ENDIAN_H}>:HAVE_ARM_ENDIAN_H>
 	$<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
 if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND SDL2_FRAMEWORK_PATH MATCHES "^/Library/Frameworks/")
 	set_property(TARGET ${NAME} PROPERTY BUILD_RPATH "/Library/Frameworks")
