@@ -16,9 +16,9 @@
 
 typedef struct
 {
-	uint32_t chunkId;
-	uint32_t chunkLen;
-	uint32_t realLen;
+	IffFourCC chunkId;
+	uint32_t  chunkLen;
+	uint32_t  realLen;
 } IffChunkHeader;
 
 typedef uint8_t LbmMask;

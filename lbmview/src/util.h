@@ -95,13 +95,11 @@ static inline uint16_t FORCE_INLINE swap16(uint16_t v) { return v << 8 | v >> 8;
 # define SWAP_LE32(V) (V)
 # define SWAP_BE32(V) swap32(V)
 # define SWAP_BE16(V) swap16(V)
-# define FOURCC(A, B, C, D) ((uint32_t)(A) | (uint32_t)(B) << 8 | (uint32_t)(C) << 16 | (uint32_t)(D) << 24)
 #elif BYTE_ORDER == BIG_ENDIAN
 # define SWAP_LE32(V) swap32(V)
 # define SWAP_LE16(V) swap16(V)
 # define SWAP_BE32(V) (V)
 # define SWAP_BE16(V) (V)
-# define FOURCC(A, B, C, D) ((uint32_t)(D) | (uint32_t)(C) << 8 | (uint32_t)(B) << 16 | (uint32_t)(A) << 24)
 #else
 # error Not implemented
 #endif

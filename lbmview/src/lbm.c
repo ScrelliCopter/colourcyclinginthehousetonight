@@ -18,7 +18,7 @@ typedef struct
 	uint32_t                   customLen;
 
 	IffChunkHeader  form;
-	uint32_t        formatId;
+	IffFourCC       formatId;
 
 	LbmChunkMask    chunkMask;
 	LbmBitmapHeader bmhd;
@@ -43,7 +43,7 @@ typedef struct
 #define IO_SEEK(OFF, WHENCE) s->iocb->seek((OFF), (WHENCE), s->iocb->user)
 #define IO_TELL() s->iocb->tell(s->iocb->user)
 
-#define IO_READ_FOURCC(V) IO_READ(&(V), sizeof(uint32_t), 1)
+#define IO_READ_FOURCC(V) IO_READ((V).c, sizeof(uint8_t), 4)
 #define IO_READ_ULONG(V)  IO_READ(&(V), sizeof(uint32_t), 1); (V) = SWAP_BE32(V)
 #define IO_READ_UWORD(V)  IO_READ(&(V), sizeof(uint16_t), 1); (V) = SWAP_BE16(V)
 #define IO_READ_UBYTE(V)  IO_READ(&(V), sizeof(uint8_t), 1)
@@ -65,9 +65,9 @@ static IffChunkHeader iffReadChunk(LbmReaderState* s)
 	return chunk;
 }
 
-static uint32_t lbmReadFormatId(LbmReaderState* s)
+static IffFourCC lbmReadFormatId(LbmReaderState* s)
 {
-	uint32_t formatId;
+	IffFourCC formatId;
 	IO_READ_FOURCC(formatId);
 	return formatId;
 }
@@ -384,9 +384,9 @@ static int lbmReadBody(LbmReaderState* s, const IffChunkHeader* chunk)
 		return -1;
 
 	size_t len = chunk->chunkLen;
-	if (s->formatId == IFF_PBM)
+	if (FOURCC_CMP(s->formatId, IFF_PBM))
 		len = lbmReadPbm(s, s->body, pixLen, len);
-	else if (s->formatId == IFF_ILBM)
+	else if (FOURCC_CMP(s->formatId, IFF_ILBM))
 		len = lbmReadIlbm(s, s->body, pixLen, len);
 	if (len == SIZE_MAX)
 		return -1;
@@ -430,31 +430,31 @@ static int lbmReadSections(LbmReaderState* s)
 		if (IO_TELL() + chunk.realLen >= s->form.chunkLen + sizeof(IffChunkHeader))
 			return -1;
 
-		switch (chunk.chunkId)
+		int res = 0;
+		if      (FOURCC_CMP(IFF_BMHD, chunk.chunkId)) res = lbmReadBitmapHeader(s, &chunk);
+		else if (FOURCC_CMP(IFF_CMAP, chunk.chunkId)) res = lbmReadColourMap(s, &chunk);
+		else if (FOURCC_CMP(IFF_CAMG, chunk.chunkId)) res = lbmReadAmiga(s, &chunk);
+		else if (FOURCC_CMP(IFF_CRNG, chunk.chunkId)) res = lbmReadColourRange(s, &chunk);
+		else if (FOURCC_CMP(IFF_DRNG, chunk.chunkId)) res = lbmReadExtendedRange(s, &chunk);
+		else if (FOURCC_CMP(IFF_CCRT, chunk.chunkId)) res = lbmReadGraphicraftRange(s, &chunk);
+		else if (FOURCC_CMP(IFF_BODY, chunk.chunkId)) res = lbmReadBody(s, &chunk);
+		else
 		{
-		case IFF_BMHD: if (lbmReadBitmapHeader(s, &chunk)) return -1; break;
-		case IFF_CMAP: if (lbmReadColourMap(s, &chunk)) return -1; break;
-		case IFF_CAMG: if (lbmReadAmiga(s, &chunk)) return -1; break;
-		case IFF_CRNG: if (lbmReadColourRange(s, &chunk)) return -1; break;
-		case IFF_DRNG: if (lbmReadExtendedRange(s, &chunk)) return -1; break;
-		case IFF_CCRT: if (lbmReadGraphicraftRange(s, &chunk)) return -1; break;
-		case IFF_BODY: if (lbmReadBody(s, &chunk)) return -1; break;
-		default:
 			if (s->customSub && s->customHndl && s->customSub(chunk.chunkId))
 			{
 				if (lbmReadCustom(s, &chunk))
-					return -1;
+					res = -1;
 			}
-			else IO_SEEK(chunk.realLen, LBMIO_SEEK_CUR);
-			break;
+			else { IO_SEEK(chunk.realLen, LBMIO_SEEK_CUR); }
 		}
+		if (res) return -1;
 
 		// We don't support these right now
-		if (chunk.chunkId == IFF_BMHD)
+		if (FOURCC_CMP(chunk.chunkId, IFF_BMHD))
 		{
 			if (s->bmhd.masking != MSK_NONE)
 				return -1;
-			if (s->bmhd.numPlanes > 8 || (s->formatId == IFF_PBM && s->bmhd.numPlanes < 8))
+			if (s->bmhd.numPlanes > 8 || (FOURCC_CMP(s->formatId, IFF_PBM) && s->bmhd.numPlanes < 8))
 				return -1;
 		}
 	}
@@ -488,10 +488,10 @@ int lbmLoad(Lbm* out)
 
 	// Read chunks
 	s.form = iffReadChunk(&s);
-	if (s.form.chunkId != IFF_FORM)
+	if (!FOURCC_CMP(s.form.chunkId, IFF_FORM))
 		goto cleanup;
 	s.formatId = lbmReadFormatId(&s);
-	if (s.formatId != IFF_PBM && s.formatId != IFF_ILBM)
+	if (!FOURCC_CMP(s.formatId, IFF_PBM) && !FOURCC_CMP(s.formatId, IFF_ILBM))
 		goto cleanup;
 	if (lbmReadSections(&s))
 		goto cleanup;
@@ -512,7 +512,7 @@ int lbmLoad(Lbm* out)
 	if (s.numCmap < LBM_PAL_SIZE)
 	{
 		const Colour* defaultPal = lbmPbmDefaultPal;
-		if (s.formatId == IFF_ILBM)
+		if (FOURCC_CMP(s.formatId, IFF_ILBM))
 			defaultPal = lbmIlbmDefaultPal;
 
 		unsigned copyNum = LBM_PAL_SIZE - s.numCmap;
@@ -527,7 +527,7 @@ int lbmLoad(Lbm* out)
 		//FIXME: "One popular paint package (which?) always sets RNG_ACTIVE, but sets rate of 36 to indicate cycling not active"
 		// Try to deduce if file is a PC ILBM/PBM, as PC DPaintII does not respect the RNG_ACTIVE flag, at all
 		bool isAtari = s.bmhd.compression == VERTICAL_RLE;
-		bool isAmiga = !isAtari && s.formatId == IFF_ILBM && (s.bmhd.numPlanes == 6 || s.chunkMask & CHUNK_CAMG);
+		bool isAmiga = !isAtari && FOURCC_CMP(s.formatId, IFF_ILBM) && (s.bmhd.numPlanes == 6 || s.chunkMask & CHUNK_CAMG);
 		if (crng->flags & RNG_ACTIVE || (!isAmiga && !isAtari && crng->rate))
 			out->rangeRate[i] = crng->flags & RNG_REVERSE ? -crng->rate : crng->rate;
 		else

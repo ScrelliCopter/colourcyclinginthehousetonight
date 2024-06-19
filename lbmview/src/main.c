@@ -19,26 +19,21 @@ static SizedBuf oggv         = BUF_CLEAR();
 
 static uint8_t volume = 0;
 
-#define IFF_CUSTOM_SCENE_INFO SDL_FOURCC('S', 'N', 'F', 'O')
-#define IFF_CUSTOM_OGG_VORBIS SDL_FOURCC('O', 'G', 'G', 'V')
-#define IFF_CUSTOM_SPANS      SDL_FOURCC('S', 'P', 'A', 'N')
+#define IFF_CUSTOM_SCENE_INFO FOURCC('S', 'N', 'F', 'O')
+#define IFF_CUSTOM_OGG_VORBIS FOURCC('O', 'G', 'G', 'V')
+#define IFF_CUSTOM_SPANS      FOURCC('S', 'P', 'A', 'N')
 
-static int customSubscriber(uint32_t fourcc)
+static int customSubscriber(IffFourCC fourcc)
 {
-	switch (fourcc)
-	{
-		case IFF_CUSTOM_SCENE_INFO:
-		case IFF_CUSTOM_SPANS:
-		case IFF_CUSTOM_OGG_VORBIS:
-			return 1;
-		default:
-			return 0;
-	}
+	if (FOURCC_CMP(fourcc, IFF_CUSTOM_SCENE_INFO) ||
+		FOURCC_CMP(fourcc, IFF_CUSTOM_SPANS) ||
+		FOURCC_CMP(fourcc, IFF_CUSTOM_OGG_VORBIS)) return 1;
+	return 0;
 }
 
-static int customHandler(uint32_t fourcc, uint32_t size, uint8_t* chunk)
+static int customHandler(IffFourCC fourcc, uint32_t size, uint8_t* chunk)
 {
-	if (fourcc == IFF_CUSTOM_SCENE_INFO)
+	if (FOURCC_CMP(fourcc, IFF_CUSTOM_SCENE_INFO))
 	{
 		uint8_t titleLen, audioLen;
 
@@ -80,12 +75,12 @@ MSVC_ENDNOWARN()
 		// Read volume
 		SDL_memcpy(&volume, chunk, sizeof(uint8_t));
 	}
-	else if (fourcc == IFF_CUSTOM_SPANS)
+	else if (FOURCC_CMP(fourcc, IFF_CUSTOM_SPANS))
 	{
 		precompSpans = BUF_SIZED(chunk, size);
 		return 1;
 	}
-	else if (fourcc == IFF_CUSTOM_OGG_VORBIS)
+	else if (FOURCC_CMP(fourcc, IFF_CUSTOM_OGG_VORBIS))
 	{
 		oggv = BUF_SIZED(chunk, size);
 		return 1;

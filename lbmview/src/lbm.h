@@ -45,8 +45,17 @@ void   lbmDefaultFileClose(void* user);
 	.close = &lbmDefaultFileClose,      \
 	.user = FILE }
 
-typedef int (*LbmCbCustomChunkSubscriber)(uint32_t fourcc);
-typedef int (*LbmCbCustomChunkHandler)(uint32_t fourcc, uint32_t size, uint8_t* chunk);
+typedef union IffFourCC
+{
+	uint8_t c[4];
+	uint32_t i;
+} IffFourCC;
+
+#define FOURCC(A, B, C, D) (IffFourCC){ .c = { A, B, C, D } }
+#define FOURCC_CMP(L, R) ((L).i == (R).i)
+
+typedef int (*LbmCbCustomChunkSubscriber)(IffFourCC fourcc);
+typedef int (*LbmCbCustomChunkHandler)(IffFourCC fourcc, uint32_t size, uint8_t* chunk);
 
 typedef uint32_t Colour;
 #define COLOUR_RSHIFT 16
