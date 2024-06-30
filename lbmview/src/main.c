@@ -100,18 +100,13 @@ static int  displayTextSplit;
 static bool quit     = false;
 static bool realtime = false;
 
-typedef uint8_t SpeedMul;
-#define MKSPEED(E, M) (SpeedMul)((unsigned)(E) << 6 | (unsigned)(M) & 0x3F)
-static inline double fFromSpeedMul(SpeedMul f) { return (1.0 + (f & 0x3F) * 0.25) * pow(10.0, (f >> 6) - 0x2); }
-static inline int numSpeedDecPlaces(SpeedMul f) { return MAX(0, MAX((f & 0x1) << 1, (f & 0x2) >> 1) - ((f >> 6) - 0x2)); }
-
 #define TIMESCALE_NUM 15
-static const SpeedMul speedTimescales[TIMESCALE_NUM] =
+static const float speedTimescales[TIMESCALE_NUM] =
 {
-	MKSPEED(0, 0), MKSPEED(0, 11), MKSPEED(0, 32),
-	MKSPEED(1, 4), MKSPEED(1, 16), MKSPEED(1, 26),
-	MKSPEED(2, 0), MKSPEED(2, 2), MKSPEED(2, 4), MKSPEED(2, 8), MKSPEED(2, 12), MKSPEED(2, 28), MKSPEED(2, 60),
-	MKSPEED(3, 16), MKSPEED(3, 36)
+	0.01f, 0.0375f, 0.09f,
+	0.2f, 0.5f, 0.75f,
+	1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 8.0f, 16.0f,
+	50.0f, 100.0f
 };
 
 static int speed = 6;
@@ -199,17 +194,30 @@ static void updateInteractiveDisplayText(void)
 	case DISPLAY_CYCLEMETHOD_LAB:    methodName = "CIELAB"; break;
 	default:                         methodName = "?"; break;
 	}
-	const SpeedMul speedTimescale = speedTimescales[speed];
+
+	char speedTimescaleBuf[8];
+	snprintf(speedTimescaleBuf, sizeof(speedTimescaleBuf), "%.*f",
+		(int)sizeof(speedTimescaleBuf) - 3, speedTimescales[speed]);
+	int numTimescaleChars = 0;
+	for (; speedTimescaleBuf[numTimescaleChars] != '\0' && speedTimescaleBuf[numTimescaleChars] != '.'; ++numTimescaleChars);
+	numTimescaleChars += 2;
+	if (speedTimescales[speed] < 1.0f)
+	{
+		int i = sizeof(speedTimescaleBuf) - 2;
+		for (; i > numTimescaleChars && speedTimescaleBuf[i - 1] == '0'; --i);
+		numTimescaleChars = i;
+	}
+
 	const char* yes = "YES", * no = "NO";
 	snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
 		"\nShow palette (P): %s\n"
 		"Show spans (S): %s\n"
 		"Cycle method (M): %s\n"
-		"Speed -([), +(]): %.*fx",
+		"Speed -([), +(]): %.*sx",
 		displayIsPaletteShown(display) ? yes : no,
 		displayIsSpanShown(display)    ? yes : no,
 		methodName,
-		MAX(1, numSpeedDecPlaces(speedTimescale)), fFromSpeedMul(speedTimescale));
+		numTimescaleChars, speedTimescaleBuf);
 	displayShowText(display, displayText);
 }
 
@@ -342,7 +350,7 @@ static void mainLoop(void)
 		const Uint64 lastTick = tick;
 		tick = SDL_GetPerformanceCounter();
 		const double dTick = perfScale * (double)(tick - lastTick);
-		displayUpdateTimer(display, fFromSpeedMul(speedTimescales[speed]) * dTick);
+		displayUpdateTimer(display, (double)speedTimescales[speed] * dTick);
 		displayUpdateTextDisplay(display, dTick);
 		displayDamage(display);
 	}
