@@ -56,10 +56,9 @@ pub(crate) trait FileExt
 	fn read_fourcc(&mut self) -> Result<[u8; 4], Error>;
 	fn read_u32be(&mut self) -> Result<u32, Error>;
 	fn read_u16be(&mut self) -> Result<u16, Error>;
-	fn read_u8(&mut self) -> Result<u8, Error>;
 	fn read_i32be(&mut self) -> Result<i32, Error>;
 	fn read_i16be(&mut self) -> Result<i16, Error>;
-	fn read_i8(&mut self) -> Result<i8, Error>;
+	fn read_u8(&mut self) -> Result<u8, Error>;
 }
 
 impl FileExt for File
@@ -70,5 +69,4 @@ impl FileExt for File
 	implement_fixed_size_read_be!(read_u16be, u16);
 	implement_fixed_size_read_be!(read_i16be, i16);
 	implement_fixed_size_read!(read_u8, u8);
-	implement_fixed_size_read!(read_i8, i8);
 }

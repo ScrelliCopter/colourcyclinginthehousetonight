@@ -130,6 +130,7 @@ impl fmt::Display for LBMType
 #[derive(Debug)]
 pub(crate) enum LBMError
 {
+	#[allow(dead_code)]
 	FileError(io::Error),
 	BadForm,
 	BadType,
