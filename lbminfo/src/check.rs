@@ -73,6 +73,14 @@ impl LBMCheck for LBM
 		{
 			return PlatformGuess::DOSDeluxePaint2;
 		}
+
+		// If there are no Amiga-esque chunks and we have a very PC-ish resolution, guess PC
+		//TODO: could perhaps be smarter, check aspect ratio?
+		if self.grab.is_none() && self.enhanced.is_empty() && self.header.size == (320, 200)
+		{
+			return PlatformGuess::DOSGeneric;
+		}
+
 		return PlatformGuess::Unknown;
 	}
 }
