@@ -3,7 +3,8 @@
 #include "surface.h"
 #include "text.h"
 #include "util.h"
-#include <SDL.h>
+#include <SDL3/SDL.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 
@@ -14,7 +15,7 @@ struct Display
 	Surface surf;
 	SDL_Texture* surfTex;
 	bool surfDamage;
-	SDL_Rect surfRect;
+	SDL_FRect surfRect;
 
 	uint8_t rangeLow[LBM_MAX_CRNG];
 	uint8_t rangeHigh[LBM_MAX_CRNG];
@@ -61,7 +62,7 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 		.numRange   = 0U,
 
 		// Set by displayResize()
-		.surfRect = { 0, 0, 0, 0 },
+		.surfRect = { 0.f, 0.f, 0.f, 0.f },
 		.srcAspect = 0.0,
 		.scrW = 0, .scrH = 0,
 
@@ -148,8 +149,12 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t pr
 		d->surf.w, d->surf.h);
 	if (!d->surfTex)
 		return -1;
+	SDL_SetTextureScaleMode(d->surfTex, SDL_SCALEMODE_NEAREST);
 
-	displayResize(d);
+	// Initial display resize
+	int backBufferW, backBufferH;
+	SDL_GetCurrentRenderOutputSize(d->rend, &backBufferW, &backBufferH);
+	displayResize(d, backBufferW, backBufferH);
 
 	// Reset cycle arrays
 	for (unsigned i = 0; i < LBM_MAX_CRNG; ++i)
@@ -182,12 +187,13 @@ static void drawPalette(Display* d, int size)
 {
 	for (unsigned i = 0; i < LBM_PAL_SIZE; ++i)
 	{
-		SDL_Rect dst = (SDL_Rect){
-			(int)(i & 0xF) * size,
-			(int)(i >> 4) * size,
-			size, size };
+		int x = (int)(i & 0xF) * size;
+		int y = (int)(i >> 4) * size;
+
 		Colour c = d->surf.pal[i];
 		SDL_SetRenderDrawColor(d->rend, COLOUR_R(c), COLOUR_G(c), COLOUR_B(c), COLOUR_A(c));
+
+		const SDL_FRect dst = { .x = (float)x, .y = (float)y, .w = (float)size, .h = (float)size };
 		SDL_RenderFillRect(d->rend, &dst);
 	}
 }
@@ -198,7 +204,7 @@ static void drawSpans(Display* d)
 		return;
 
 	// Save current renderer state
-	SDL_Colour oldColour;
+	SDL_Color oldColour;
 	SDL_BlendMode oldMode;
 	SDL_GetRenderDrawColor(d->rend, &oldColour.r, &oldColour.g, &oldColour.b, &oldColour.a);
 	SDL_GetRenderDrawBlendMode(d->rend, &oldMode);
@@ -208,8 +214,8 @@ static void drawSpans(Display* d)
 	const Uint8 alpha = 0x3F;
 
 	// Compute scale factors
-	float sw = (float)d->surfRect.w / (float)d->surf.w;
-	float sh = (float)d->surfRect.h / (float)d->surf.h;
+	float sw = d->surfRect.w / (float)d->surf.w;
+	float sh = d->surfRect.h / (float)d->surf.h;
 
 	const SurfSpan* spans = d->surf.spans;
 	SDL_FRect fdst = { 0, 0, 0, sh };
@@ -219,27 +225,27 @@ static void drawSpans(Display* d)
 		if (span.l < 0) // Skip empties
 			continue;
 
-		fdst.y = (float)d->surfRect.y + (float)i * sh;
+		fdst.y = d->surfRect.y + (float)i * sh;
 		if (span.inL < 0)
 		{
 			// Fill contiguous spans in red
 			SDL_SetRenderDrawColor(d->rend, 0xFF, 0x00, 0x6E, alpha);
-			fdst.x = (float)d->surfRect.x + (float)span.l * sw;
+			fdst.x = d->surfRect.x + (float)span.l * sw;
 			fdst.w = (1.0f + (float)span.r - (float)span.l) * sw;
-			SDL_RenderFillRectF(d->rend, &fdst);
+			SDL_RenderFillRect(d->rend, &fdst);
 		}
 		else
 		{
 			// Fill split span (left portion in blue)
 			SDL_SetRenderDrawColor(d->rend, 0x00, 0x66, 0xFF, alpha);
-			fdst.x = (float)d->surfRect.x + (float)span.l * sw;
+			fdst.x = d->surfRect.x + (float)span.l * sw;
 			fdst.w = ((float)span.inL - (float)span.l) * sw;
-			SDL_RenderFillRectF(d->rend, &fdst);
+			SDL_RenderFillRect(d->rend, &fdst);
 			// (Right portion in green)
 			SDL_SetRenderDrawColor(d->rend, 0x00, 0xFF, 0x06, alpha);
-			fdst.x = (float)d->surfRect.x + (1.0f + (float)span.inR) * sw;
+			fdst.x = d->surfRect.x + (1.0f + (float)span.inR) * sw;
 			fdst.w = ((float)span.r - (float)span.inR) * sw;
-			SDL_RenderFillRectF(d->rend, &fdst);
+			SDL_RenderFillRect(d->rend, &fdst);
 		}
 	}
 
@@ -256,7 +262,7 @@ void recalcDisplayRect(Display* d, int w, int h, double aspect)
 	double dstAspect = (double)w / (double)h;
 	if (d->srcAspect < dstAspect)
 	{
-		dst.w = (int)round((double)h * aspect);
+		dst.w = (int)(round((double)h * aspect));
 		dst.h = h;
 		dst.x = (w - dst.w) / 2;
 		dst.y = 0;
@@ -264,7 +270,7 @@ void recalcDisplayRect(Display* d, int w, int h, double aspect)
 	else if (d->srcAspect > dstAspect)
 	{
 		dst.w = w;
-		dst.h = (int)round((double)w / aspect);
+		dst.h = (int)(round((double)w / aspect));
 		dst.x = 0;
 		dst.y = (h - dst.h) / 2;
 	}
@@ -273,7 +279,7 @@ void recalcDisplayRect(Display* d, int w, int h, double aspect)
 		dst = (SDL_Rect){ 0, 0, w, h };
 	}
 
-	d->surfRect = dst;
+	d->surfRect = (SDL_FRect){ (int)dst.x, (int)dst.y, (int)dst.w, (int)dst.h };
 }
 
 
@@ -328,25 +334,25 @@ static void updatePalette(Display* d)
 	case DISPLAY_CYCLEMETHOD_SRGB:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeSrgb(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
-				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+				copysign((double)d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 		break;
 	case DISPLAY_CYCLEMETHOD_LINEAR:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeLinear(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
-				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+				copysign((double)d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 		break;
 	case DISPLAY_CYCLEMETHOD_HSLUV:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeHsluv(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
-				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+				copysign((double)d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 		break;
 	case DISPLAY_CYCLEMETHOD_LAB:
 		for (unsigned i = 0; i < d->numRange; ++i)
 			surfaceRangeLab(&d->surf, d->rangeHigh[i], d->rangeLow[i], d->cyclePos[i],
-				copysign(d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
+				copysign((double)d->cycleTimers[i] * rateScale, -d->rangeRate[i]));
 		d->surfDamage = true;
 		break;
 	default: break;
@@ -372,7 +378,7 @@ void displayRepaint(Display* d)
 	// Render everthing
 	SDL_SetRenderDrawColor(d->rend, 0x00, 0x00, 0x00, 0xFF);
 	SDL_RenderClear(d->rend);
-	SDL_RenderCopy(d->rend, d->surfTex, NULL, &d->surfRect);
+	SDL_RenderTexture(d->rend, d->surfTex, NULL, &d->surfRect);
 
 	if (d->spanView)
 		drawSpans(d);
@@ -384,13 +390,13 @@ void displayRepaint(Display* d)
 		SDL_SetRenderDrawBlendMode(d->rend, SDL_BLENDMODE_BLEND);
 		float interp = d->textTimer > TEXT_TIME_FADE
 			? (d->textTimer - TEXT_TIME_FADE) / (TEXT_TIME_END - TEXT_TIME_FADE) : 0.0f;
-		Uint8 alpha = (Uint8)((1.0 - interp) * 0xFF);
+		Uint8 alpha = (Uint8)((1.0f - interp) * 0xFF);
 		SDL_SetRenderDrawColor(d->rend, 0x00, 0x00, 0x00, alpha >> 1);
 		SDL_SetTextureAlphaMod(d->font.tex, alpha);
 		int w, h;
 		textComputeArea(&w, &h, d->text);
 		h += 16;
-		SDL_RenderFillRect(d->rend, &(SDL_Rect){0, d->scrH - h, d->scrW, h});
+		SDL_RenderFillRect(d->rend, &(SDL_FRect){0.f, (float)(d->scrH - h), (float)d->scrW, (float)h});
 		SDL_SetRenderDrawBlendMode(d->rend, SDL_BLENDMODE_NONE);
 		textDraw(&d->font, 16, d->scrH - h + 8, d->text);
 	}
@@ -445,14 +451,15 @@ int displayGetCycleMethod(const Display* d)
 }
 
 
-void displayResize(Display* d)
+void displayResize(Display* d, int w, int h)
 {
 	if (!d)
 		return;
-	SDL_GetRendererOutputSize(d->rend, &d->scrW, &d->scrH);
 	d->srcAspect = (double)d->surf.w / (double)d->surf.h;
-	recalcDisplayRect(d, d->scrW, d->scrH, d->srcAspect);
+	recalcDisplayRect(d, w, h, d->srcAspect);
 	d->repaint = true;
+
+	d->scrW = w, d->scrH = h;
 }
 
 void displayDamage(Display* d)

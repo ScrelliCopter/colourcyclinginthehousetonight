@@ -2,7 +2,7 @@
 #include "surface.h"
 #include "util.h"
 #include "hsluv.h"
-#include <SDL_render.h>
+#include <SDL3/SDL_render.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -22,8 +22,8 @@ int surfaceInit(Surface* surf,
 	if (!surf->comb)
 		return -1;
 
-	SDL_memcpy4(surf->srcPal, pal, LBM_PAL_SIZE);
-	SDL_memcpy4(surf->pal, pal, LBM_PAL_SIZE);
+	SDL_memcpy(surf->srcPal, pal, sizeof(Colour) * LBM_PAL_SIZE);
+	SDL_memcpy(surf->pal, pal, sizeof(Colour) * LBM_PAL_SIZE);
 	SDL_memcpy(surf->srcPix, pix, w * h);
 	surf->w = w;
 	surf->h = h;
@@ -69,7 +69,7 @@ void surfacePalShiftLeft(Surface* surf, uint8_t hi, uint8_t low)
 		return;
 
 	Colour tmp = surf->pal[low];
-	SDL_memcpy4(&surf->pal[low], &surf->pal[low + 1], hi - low);
+	SDL_memcpy(&surf->pal[low], &surf->pal[low + 1], sizeof(Colour) * (hi - low));
 	surf->pal[hi] = tmp;
 }
 
@@ -79,7 +79,7 @@ void surfaceRange(Surface* surf, uint8_t hi, uint8_t low, int cycle)
 		return;
 
 	uint8_t range = ++hi - low;
-	unsigned frame = (unsigned)fmod(cycle, range);
+	unsigned frame = (unsigned)(fmod(cycle, range));
 
 	for (unsigned j = 0; j < range; ++j)
 		surf->pal[low + j] = surf->srcPal[((j + frame) % range + low) & 0xFF];

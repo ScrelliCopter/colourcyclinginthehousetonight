@@ -14,7 +14,7 @@ if (EMSCRIPTEN)
 		INTERFACE_COMPILE_OPTIONS -sUSE_SDL=2
 		INTERFACE_LINK_LIBRARIES "-sUSE_SDL=2")
 else()
-	find_package(SDL2 REQUIRED)
+	find_package(SDL3 REQUIRED)
 endif()
 if (USE_VORBISFILE)
 	find_package(Vorbisfile)
@@ -42,7 +42,7 @@ target_compile_definitions(${NAME} PRIVATE
 	$<$<BOOL:${HAVE_FTELLO}>:HAVE_FTELLO>
 	$<$<BOOL:${HAVE_FSEEKO}>:HAVE_FSEEKO>
 	$<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>)
-if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND SDL2_FRAMEWORK_PATH MATCHES "^/Library/Frameworks/")
+if (CMAKE_C_PLATFORM_ID STREQUAL "Darwin" AND SDL3_FRAMEWORK_PATH MATCHES "^/Library/Frameworks/")
 	set_property(TARGET ${NAME} PROPERTY BUILD_RPATH "/Library/Frameworks")
 endif()
 if (USE_VORBISFILE AND TARGET Vorbis::vorbisfile)
@@ -51,13 +51,11 @@ if (USE_VORBISFILE AND TARGET Vorbis::vorbisfile)
 else()
 	target_sources(${NAME} PRIVATE src/stb_vorbis.h)
 endif()
-target_link_libraries(${NAME}
-	$<$<PLATFORM_ID:Windows>:SDL2::SDL2main>
-	SDL2::SDL2
-	$<$<C_COMPILER_ID:Clang,GNU>:m>)
+target_link_libraries(${NAME} SDL3::SDL3 $<$<C_COMPILER_ID:Clang,GNU>:m>)
 target_compile_options(${NAME} PRIVATE
 	$<$<C_COMPILER_ID:AppleClang,Clang,GNU>:-Wall -Wextra -pedantic -Wno-unused-parameter>
 	$<$<C_COMPILER_ID:AppleClang,Clang>:-Weverything -Wno-declaration-after-statement -Wno-padded>
+	$<$<C_COMPILER_ID:AppleClang>:-Wno-covered-switch-default>
 	$<$<C_COMPILER_ID:MSVC>:/W4 /wd4100>)
 if (ENABLE_ASAN)
 	target_compile_options(${NAME} PRIVATE
