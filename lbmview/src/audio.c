@@ -9,9 +9,8 @@
 #else
 # include "stb_vorbis.h"
 #endif
-#include <SDL.h>
-
-#define STR(X) #X
+# include <stdlib.h>
+#include <SDL3/SDL.h>
 
 
 static const char* getVorbisError(int err)
@@ -32,6 +31,7 @@ static const char* getVorbisError(int err)
 	case OV_EBADLINK:   return "Invalid stream section";
 	case OV_ENOSEEK:    return "Unseekable stream";
 #else
+# define STR(X) #X
 	case VORBIS_outofmem:              return "System memory is exhausted";
 	case VORBIS_feature_not_supported: return "floor 0 vorbis is not supported";
 	case VORBIS_too_many_channels:     return "Exceeded max " STR(STB_VORBIS_MAX_CHANNELS) " Channels";
@@ -60,7 +60,8 @@ static bool ovOpen = false;
 #else
 static vorb* vorbin = NULL;
 #endif
-static SDL_AudioDeviceID dev = 0;
+static SizedBuf decodeBuf = BUF_CLEAR();
+static SDL_AudioStream* stream = NULL;
 static SDL_AudioSpec spec;
 static int volumeMul;
 
@@ -69,70 +70,77 @@ static inline void setVolume(uint8_t volume)
 	volumeMul = (volume > 0) ? (int)(volume & 0xFF) + 1 : 0;
 }
 
-static void sdlAudioCallback(void* user, Uint8* stream, int len)
+static void sdlAudioCallback(void* user, SDL_AudioStream* stream, int additional, int total) SDLCALL
 {
-	if (volumeMul > 0)
+	if (additional <= 0 || volumeMul == 0)
+		return;
+
+	int16_t* samples = (int16_t*)decodeBuf.ptr;
+	if (samples == NULL)
+		return;
+
+	int remaining = additional;
+	while (true)
 	{
-		short* samples = (short*)stream;
-		int numSamples = len / (int)sizeof(short);
+		const int bytes = MIN(remaining, (int)decodeBuf.len);
 
 #ifdef USE_VORBISFILE
 		int section, read = 0;
-		while (read < len)
+		while (read < bytes)
 		{
-			int res = ov_read(&ov, (char*)stream + read, len - read,
-				SDL_BYTEORDER == SDL_BIG_ENDIAN, sizeof(int16_t), 1, &section);
+			long res = ov_read(&ov, (char*)samples + read, bytes - read,
+				SDL_BYTEORDER == SDL_BIG_ENDIAN ? 1 : 0, 2, 1, &section);
 			if (res < 0)
-				goto audioPanic;
+				return;
 			if (res == 0)
 			{
-				res = ov_time_seek_page(&ov, 0.0); // Seek to beginning
+				res = ov_time_seek_page(&ov, 0.0);  // Seek to beginning
 				if (res != 0)
-					goto audioPanic;
+					return;
 				continue;
 			}
 			read += res;
 		}
 		int vorbSamples = read / sizeof(int16_t);
 #else
+		int numSamples = additional / (int)sizeof(int16_t);
 		int numChannels = spec.channels;
 
 		// Decode vorbis samples
 		int res = stb_vorbis_get_samples_short_interleaved(vorbin, numChannels, samples, numSamples);
 		if (res < 0)
-			goto audioPanic;
+			return;
 		int vorbSamples = res * numChannels;
 
 		// If we read less than the buffer then we probably hit EOF
 		if (vorbSamples < numSamples)
 		{
-			stb_vorbis_seek_start(vorbin); // Seek to beginning
+			stb_vorbis_seek_start(vorbin);  // Seek to beginning
 			res = stb_vorbis_get_samples_short_interleaved(vorbin, numChannels, &samples[vorbSamples], numSamples - vorbSamples);
 			if (res < 0)
-				goto audioPanic;
+				return;
 			vorbSamples += res * numChannels;
 		}
 #endif
 
 		// Apply volume
 		for (int i = 0; i < vorbSamples; ++i)
-			samples[i] = (short)(((int)samples[i] * volumeMul) >> 8);
+			samples[i] = (int16_t)(((int)samples[i] * volumeMul) >> 8);
 
-		// If both reads read less than buffer size then zero the rest to be safe
-		if (vorbSamples < numSamples)
-			SDL_memset(&samples[vorbSamples], 0, (numSamples - vorbSamples) * sizeof(short));
-		return;
+		int vorbBytes = sizeof(int16_t) * vorbSamples;
+		SDL_PutAudioStreamData(stream, decodeBuf.ptr, vorbBytes);
+
+		if (remaining <= vorbBytes)
+			return;
+		remaining -= vorbBytes;
 	}
-
-audioPanic:
-	SDL_memset(stream, 0, len);
 }
 
 int audioInit(SDL_Window* window)
 {
 	if (!window)
 		return -1;
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
+	if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
 		return -1;
 	return 0;
 }
@@ -169,25 +177,32 @@ static int openDevice(const vorbis_info* vorbNfo)
 static int openDevice(const stb_vorbis_info* vorbNfo)
 #endif
 {
-	SDL_AudioSpec wantSpec =
+	spec = (SDL_AudioSpec)
 	{
-		.callback = sdlAudioCallback,
-		.samples  = (1024U << 3U),
-		.format   = AUDIO_S16SYS,
-
+		.format   = SDL_AUDIO_S16,
+		.channels = (Uint8)vorbNfo->channels,
 #ifdef USE_VORBISFILE
-		.freq     = (int)vorbNfo->rate,
+		.freq = (int)vorbNfo->rate
 #else
-		.freq     = (int)vorbNfo->sample_rate,
+		.freq = (int)vorbNfo->sample_rate
 #endif
-		.channels = (Uint8)vorbNfo->channels
 	};
-	dev = SDL_OpenAudioDevice(NULL, 0, &wantSpec, &spec, 1);
-	if (dev == 0)
+
+	// Open output stream
+	stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, sdlAudioCallback, NULL);
+	if (!stream)
 	{
-		printError("audioInit", SDL_GetError(), (int)dev);
+		printError("audioInit", SDL_GetError(), (int)SDL_GetAudioStreamDevice(stream));
 		return -1;
 	}
+
+	// Allocate work buffer
+	SDL_AudioSpec devSpec;
+	int frames = 0;
+	SDL_GetAudioDeviceFormat(SDL_GetAudioStreamDevice(stream), &devSpec, &frames);
+	decodeBuf = BUF_ALLOC(SDL_AUDIO_FRAMESIZE(spec) * MAX((size_t)frames, 1024U << 3U));
+	if (!decodeBuf.ptr)
+		return -1;
 	return 0;
 }
 
@@ -226,7 +241,7 @@ int audioPlayFile(const char* oggPath, uint8_t volume)
 #endif
 
 	setVolume(volume);
-	SDL_PauseAudioDevice(dev, 0);
+	SDL_ResumeAudioStreamDevice(stream);
 	return 0;
 }
 
@@ -328,15 +343,16 @@ int audioPlayMemory(const void* oggv, int oggvLen, uint8_t volume)
 #endif
 
 	setVolume(volume);
-	SDL_PauseAudioDevice(dev, 0);
+	SDL_ResumeAudioStreamDevice(stream);
 	return 0;
 }
 
 void audioClose(void)
 {
-	SDL_PauseAudioDevice(dev, 0);
-	SDL_CloseAudioDevice(dev);
-	dev = 0;
+	SDL_PauseAudioStreamDevice(stream);
+	BUF_FREE(decodeBuf);
+	SDL_DestroyAudioStream(stream);
+	stream = NULL;
 #ifdef USE_VORBISFILE
 	ov_clear(&ov);
 	ovOpen = false;
@@ -352,7 +368,7 @@ void audioClose(void)
 
 int audioIsOpen(void)
 {
-	if (dev <= 0)
+	if (!stream)
 		return 0;
 #ifdef USE_VORBISFILE
 	if (ovOpen)
@@ -366,7 +382,8 @@ int audioIsOpen(void)
 
 int audioIsPlaying(void)
 {
-	if (audioIsOpen() && SDL_GetAudioDeviceStatus(dev) == SDL_AUDIO_PLAYING)
-		return 1;
-	return 0;
+	if (!audioIsOpen())
+		return 0;
+	SDL_AudioDeviceID dev = SDL_GetAudioStreamDevice(stream);
+	return dev != 0 && !SDL_AudioDevicePaused(dev);
 }

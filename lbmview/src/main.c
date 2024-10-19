@@ -2,7 +2,9 @@
 #include "display.h"
 #include "audio.h"
 #include "util.h"
-#include <SDL.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -143,11 +145,16 @@ static int reset(const char* lbmPath)
 	if (!win)
 	{
 		// Create window if it doesn't exist
-		const int winpos = SDL_WINDOWPOS_UNDEFINED;
-		const int winflg = SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE;
-		//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-		win = SDL_CreateWindow(wintitle, winpos, winpos, lbm.w, lbm.h, winflg);
-		rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
+		const int winflg = SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_RESIZABLE;
+		win = SDL_CreateWindow(wintitle, lbm.w, lbm.h, winflg);
+#ifdef __APPLE__
+		// Force Metal on Apple, SDL_Gpu is buggy :(
+		const char* devName = "metal";
+#else
+		const char* devName = NULL;
+#endif
+		rend = SDL_CreateRenderer(win, devName);
+		SDL_SetRenderVSync(rend, 1);
 		if (!win || !rend)
 		{
 			lbmFree(&lbm);
@@ -275,62 +282,65 @@ static void deinit(void)
 
 static void handleEvent(const SDL_Event* event)
 {
-	if (event->type == SDL_QUIT)
+	if (event->type == SDL_EVENT_QUIT)
 		quit = true;
-	else if (event->type == SDL_KEYDOWN)
+	else if (event->type == SDL_EVENT_KEY_DOWN)
 	{
-		if (event->key.keysym.scancode == SDL_SCANCODE_P)
+		if (event->key.scancode == SDL_SCANCODE_P)
 		{
 			displayToggleShowPalette(display);
 			updateInteractiveDisplayText();
 		}
-		else if (event->key.keysym.scancode == SDL_SCANCODE_S)
+		else if (event->key.scancode == SDL_SCANCODE_S)
 		{
 			displayToggleShowSpan(display);
 			updateInteractiveDisplayText();
 		}
-		else if (event->key.keysym.scancode == SDL_SCANCODE_M)
+		else if (event->key.scancode == SDL_SCANCODE_M)
 		{
 			displayCycleBlendMethod(display);
 			updateInteractiveDisplayText();
 		}
-		else if (event->key.keysym.scancode == SDL_SCANCODE_LEFTBRACKET)
+		else if (event->key.scancode == SDL_SCANCODE_LEFTBRACKET)
 		{
 			if (speed > 0)
 				--speed;
 			updateInteractiveDisplayText();
 		}
-		else if (event->key.keysym.scancode == SDL_SCANCODE_RIGHTBRACKET)
+		else if (event->key.scancode == SDL_SCANCODE_RIGHTBRACKET)
 		{
 			if (speed < TIMESCALE_NUM - 1)
 				++speed;
 			updateInteractiveDisplayText();
 		}
 	}
-	else if (event->type == SDL_WINDOWEVENT)
+	else if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
 	{
-		if (event->window.event == SDL_WINDOWEVENT_RESIZED)
-			displayResize(display);
-		else if (event->window.event == SDL_WINDOWEVENT_EXPOSED && !realtime)
+		displayResize(display, event->display.data1, event->display.data2);
+	}
+	else if (event->type == SDL_EVENT_WINDOW_EXPOSED)
+	{
+		if (!realtime)
 			displayDamage(display);
 	}
-	else if (event->type == SDL_DROPFILE)
+	else if (event->type == SDL_EVENT_DROP_FILE)
 	{
-		char* file = event->drop.file;
-		reset(file);
-		SDL_free(file);
+		reset(event->drop.data);
 	}
 }
 
 
-static double perfScale;
 static Uint64 tick;
 
 static void mainLoop(void)
 {
 	bool realtimeNew = !BUF_EMPTY(precompSpans) || displayHasAnimation(display) || displayIsTextShown(display);
 	if (!realtime == realtimeNew)
+#if 0
 		tick = SDL_GetPerformanceCounter();
+#else
+		tick = SDL_GetTicksNS();
+#endif
 	realtime = realtimeNew;
 
 	SDL_Event event;
@@ -348,8 +358,14 @@ static void mainLoop(void)
 	if (realtime)
 	{
 		const Uint64 lastTick = tick;
+#if 0
+		const double divisor = (double)SDL_GetPerformanceFrequency();
 		tick = SDL_GetPerformanceCounter();
-		const double dTick = perfScale * (double)(tick - lastTick);
+#else
+		const double divisor = 1000000000.0;
+		tick = SDL_GetTicksNS();
+#endif
+		const double dTick = (double)(tick - lastTick) / divisor;
 		displayUpdateTimer(display, (double)speedTimescales[speed] * dTick);
 		displayUpdateTextDisplay(display, dTick);
 		displayDamage(display);
@@ -358,12 +374,12 @@ static void mainLoop(void)
 	displayRepaint(display);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
 	if (argc != 2)
 		return 1;
 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	if (!SDL_Init(SDL_INIT_VIDEO))
 		return 1;
 
 	if (reset(argv[1]))
@@ -372,8 +388,11 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	perfScale = 1.0 / (double)SDL_GetPerformanceFrequency();
+#if 0
 	tick = SDL_GetPerformanceCounter();
+#else
+	tick = SDL_GetTicksNS();
+#endif
 
 #ifdef EMSCRIPTEN
 	emscripten_set_main_loop(mainLoop, 0, 1);
