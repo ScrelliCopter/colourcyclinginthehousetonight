@@ -247,13 +247,13 @@ void surfaceRangeLab(Surface* surf, uint8_t hi, uint8_t low, int cycle, double t
 		double oldL, oldA, oldB, newL, newA, newB;
 		labFromRgb(&oldL, &oldA, &oldB, COLOUR_R(old8) / 255.0, COLOUR_G(old8) / 255.0, COLOUR_B(old8) / 255.0);
 		labFromRgb(&newL, &newA, &newB, COLOUR_R(new8) / 255.0, COLOUR_G(new8) / 255.0, COLOUR_B(new8) / 255.0);
-		double r, g, b, a = LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
+		double r, g, b;
 		rgbFromLab(&r, &g, &b, LERP(oldL, newL, tween), LERP(oldA, newA, tween), LERP(oldB, newB, tween));
+		uint8_t a = (uint8_t)LERP(COLOUR_A(old8), COLOUR_A(new8), tween);
 		dst[low + j] = MAKE_COLOUR(
 			(uint8_t)(SATURATE(r) * 255.0),
 			(uint8_t)(SATURATE(g) * 255.0),
-			(uint8_t)(SATURATE(b) * 255.0),
-			(uint8_t)(a * 255.0));
+			(uint8_t)(SATURATE(b) * 255.0), a);
 	}
 }
 
