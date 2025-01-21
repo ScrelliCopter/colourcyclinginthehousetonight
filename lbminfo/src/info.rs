@@ -48,7 +48,18 @@ impl fmt::Display for LBMShortInfo<'_>
 		if lbm.dpi.is_some()         { have.push("DPI"); }
 		if lbm.spans.is_some()       { have.push("SPAN"); }
 		if lbm.body.is_some()        { have.push("BODY"); }
-		write!(fmt, "Type: \"{}\" ({}), Chunks: [{}]", lbm.iffType, lbm.guess(), have.join(","))
+		write!(fmt, "Type: \"{}\" ({}), Chunks: [{}]", lbm.iffType, lbm.guess(), have.join(","))?;
+		if !lbm.unknown.is_empty()
+		{
+			write!(fmt, ", Unknown: [")?;
+			for (idx, chunk) in lbm.unknown.iter().enumerate()
+			{
+				if idx > 0 { write!(fmt, ",")? }
+				write!(fmt, "{}", String::from_utf8_lossy(chunk))?;
+			}
+			write!(fmt, "]")?;
+		}
+		return Ok(())
 	}
 }
 
@@ -241,6 +252,15 @@ impl fmt::Display for LBMFullInfo<'_>
 			if lbm.header.compression != Compression::NONE { write!(f, "Compressed ")?; }
 			writeln!(f, "Raster data (BODY):")?;
 			writeln!(f, "  length: {} byte(s)", body.len)?;
+		}
+		if !lbm.unknown.is_empty()
+		{
+			write!(f, "Unknown Chunks: [")?;
+			for (idx, chunk) in lbm.unknown.iter().enumerate()
+			{
+				write!(f, "{}\"{}\"", if idx > 0 { ", " } else { "" }, String::from_utf8_lossy(chunk))?;
+			}
+			writeln!(f, "]")?;
 		}
 		Ok(())
 	}

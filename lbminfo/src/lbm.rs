@@ -2,6 +2,7 @@
  * 2024 (c) a dinosaur
  * SPDX-License-Identifier: Zlib */
 
+use std::collections::HashSet;
 use std::{fmt, fs, io, path};
 use std::io::Seek;
 use crate::chunk::header::LBMHeader;
@@ -40,7 +41,8 @@ pub(crate) struct LBM
 	pub(crate) tiny: Option<DeluxePaintThumbnail>,
 	pub(crate) dpi: Option<DotsPerInch>,
 	pub(crate) spans: Option<UpdateSpans>,
-	pub(crate) body: Option<Body>
+	pub(crate) body: Option<Body>,
+	pub(crate) unknown: HashSet<[u8; 4]>
 }
 
 impl LBM
@@ -64,6 +66,7 @@ impl LBM
 		}
 
 		let mut lbm = LBMReader::default();
+		let mut unknown = HashSet::new();
 		let mut bytesRead: usize = 4;
 		while bytesRead < formSize
 		{
@@ -74,10 +77,9 @@ impl LBM
 			// Read all chunks in the IFF FORM
 			let chunkRead = lbm.readChunk(&chunkId, chunkSize, &mut file)?.unwrap_or_else(||
 			{
-				// Skip unrecognised chunks
-				if ![b"JUNK", b"SNFO", b"OGGV", b"SNFO"].contains(&&chunkId)
+				if ![b"JUNK", b"SNFO", b"OGGV", b"SNFO"].contains(&&chunkId)  // Ignore junk chunks
 				{
-					eprintln!("Unknown chunk: \"{}\"", String::from_utf8_lossy(&chunkId));
+					unknown.insert(chunkId);  // Log unrecognised chunks of interest
 				}
 				return 0;
 			});
@@ -100,7 +102,8 @@ impl LBM
 			dpps: lbm.dpps, dpxt: lbm.dpxt, dppv: lbm.dppv, tiny: lbm.tiny,
 			spans: lbm.spans,
 			dpi: lbm.dpi,
-			body: lbm.body })
+			body: lbm.body,
+			unknown })
 	}
 }
 
