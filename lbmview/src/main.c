@@ -1,4 +1,4 @@
-/* main.c - (C) 2023, 2024 a dinosaur (zlib) */
+/* main.c - (C) 2023-2025 a dinosaur (zlib) */
 #include "display.h"
 #include "audio.h"
 #include "util.h"
@@ -374,8 +374,60 @@ static void mainLoop(void)
 	displayRepaint(display);
 }
 
+#ifndef EMSCRIPTEN
+typedef struct { SDL_Semaphore* sem; char* filepath; } OpenFileDialogueState;
+
+static void openFileDialogue(void* user, const char* const* list, int filter)
+{
+	if (list && list[0] != NULL)
+		((OpenFileDialogueState*)user)->filepath = SDL_strdup(list[0]);
+	else if (!list)
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_ShowOpenFileDialog: %s", SDL_GetError());
+	SDL_SignalSemaphore(((OpenFileDialogueState*)user)->sem);
+}
+#endif
+
 int main(int argc, char* argv[])
 {
+#ifndef EMSCRIPTEN
+	// Open file picker when no arguments are provided
+	if (argc == 1)
+	{
+		// MacOS appears to remember the last directory by default
+		const char* location = NULL; //SDL_GetUserFolder(SDL_FOLDER_HOME);
+
+		SDL_Semaphore* sem = SDL_CreateSemaphore(0);
+		if (!sem)
+			return 1;
+		if (!SDL_Init(SDL_INIT_VIDEO))  //SDL bug: misbehaves with just INIT_EVENTS, needs INIT_VIDEO
+			return 1;
+
+		// Prompt the user to select an LBM
+		OpenFileDialogueState state = { .sem = sem, .filepath = NULL };
+		static const SDL_DialogFileFilter filter[1] =
+		{
+			{ .name = "IFF ILBM/PBM files", .pattern = "lbm;iff;ilb;ilbm;frm;lores;aga" }
+		};
+		SDL_ShowOpenFileDialog(openFileDialogue, (void*)&state, NULL, filter, SDL_arraysize(filter), location, false);
+
+		// Wait for dialogue selection
+		SDL_WaitSemaphore(sem);
+		SDL_DestroySemaphore(sem);
+
+		if (state.filepath != NULL)
+		{
+			int err = reset(state.filepath);
+			SDL_free(state.filepath);
+			if (err)
+			{
+				deinit();
+				return 1;
+			}
+			goto SkipCommandLineInit;
+		}
+	}
+#endif
+
 	if (argc != 2)
 		return 1;
 
@@ -388,6 +440,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+SkipCommandLineInit:
 #if 0
 	tick = SDL_GetPerformanceCounter();
 #else
