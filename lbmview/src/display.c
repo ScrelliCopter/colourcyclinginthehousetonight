@@ -149,6 +149,7 @@ int displayReset(Display* d, const Lbm* lbm, const void* precompSpans, size_t pr
 		d->surf.w, d->surf.h);
 	if (!d->surfTex)
 		return -1;
+	SDL_SetTextureBlendMode(d->surfTex, SDL_BLENDMODE_NONE);
 	SDL_SetTextureScaleMode(d->surfTex, SDL_SCALEMODE_NEAREST);
 
 	// Initial display resize
