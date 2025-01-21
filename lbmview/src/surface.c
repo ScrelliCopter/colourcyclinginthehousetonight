@@ -69,7 +69,7 @@ void surfacePalShiftLeft(Surface* surf, uint8_t hi, uint8_t low)
 		return;
 
 	Colour tmp = surf->pal[low];
-	SDL_memcpy4(&surf->pal[low], &surf->pal[low + 1], hi - low);
+	SDL_memmove(&surf->pal[low], &surf->pal[low + 1], sizeof(Colour) * (hi - low));
 	surf->pal[hi] = tmp;
 }
 
