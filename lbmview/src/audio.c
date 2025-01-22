@@ -70,7 +70,7 @@ static inline void setVolume(uint8_t volume)
 	volumeMul = (volume > 0) ? (int)(volume & 0xFF) + 1 : 0;
 }
 
-static void sdlAudioCallback(void* user, SDL_AudioStream* stream, int additional, int total) SDLCALL
+static void SDLCALL sdlAudioCallback(void* user, SDL_AudioStream* stream, int additional, int total)
 {
 	if (additional <= 0 || volumeMul == 0)
 		return;
