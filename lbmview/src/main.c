@@ -286,6 +286,11 @@ static void handleEvent(const SDL_Event* event)
 		quit = true;
 	else if (event->type == SDL_EVENT_KEY_DOWN)
 	{
+#ifdef EMSCRIPTEN
+		// SDL bug: Workaround every keypress being immediately retriggered on the web for some reason
+		if (event->key.repeat)
+			return;
+#endif
 		if (event->key.scancode == SDL_SCANCODE_P)
 		{
 			displayToggleShowPalette(display);
