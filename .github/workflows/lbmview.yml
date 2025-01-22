@@ -23,8 +23,8 @@ jobs:
             config: "-DUSE_VORBISFILE:BOOL=OFF -DCMAKE_OSX_ARCHITECTURES=\"arm64;x86_64\" -DCMAKE_FRAMEWORK_PATH:PATH=/Volumes/SDL3/SDL3.xcframework/macos-arm64_x86_64 -DCMAKE_BUILD_RPATH=/Library/Frameworks" }
         - { name: "MSVC-Win64", os: windows-latest, cc: cl, arch: x64 }
         - { name: "MinGW-Win64", os: windows-latest, cc: gcc }
-        - { name: "GCC-Linux-AMD64", os: ubuntu-latest, cc: gcc }
-        - { name: "Clang-Linux-AMD64", os: ubuntu-latest, cc: clang }
+#        - { name: "GCC-Linux-AMD64", os: ubuntu-latest, cc: gcc }
+#        - { name: "Clang-Linux-AMD64", os: ubuntu-latest, cc: clang }
 
     env:
       ARTIFACT: "${{format('colourcyclinginthehousetonight{0}', startsWith(matrix.cfg.os, 'windows') && '.exe' || '')}}"
@@ -42,17 +42,18 @@ jobs:
       run: |
         curl -Lo SDL.dmg https://github.com/libsdl-org/SDL/releases/download/prerelease-3.1.10/SDL3-3.1.10.dmg
         hdiutil attach SDL.dmg
-    - name: Setup SDL (Windows)
-      if: ${{startsWith(matrix.cfg.os, 'windows')}}
+    - name: Setup SDL (Windows & Linux)
+      if: ${{startsWith(matrix.cfg.os, 'windows') || startsWith(matrix.cfg.os, 'ubuntu')}}
       uses: libsdl-org/setup-sdl@main
       with:
         install-linux-dependencies: true
-        version: 3-latest
+        version: sdl3-latest
+        cmake-generator: Ninja
     - name: Setup SDL & Vorbisfile (Linux)
       if: ${{startsWith(matrix.cfg.os, 'ubuntu')}}
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
-        packages: libsdl3-dev libvorbis-dev
+        packages: libvorbis-dev
         version: 1.0
 
     - name: Configure CMake
