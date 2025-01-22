@@ -39,6 +39,7 @@ bool displayIsPaletteShown(const Display* d);
 int displayGetCycleMethod(const Display* d);
 
 void displayResize(Display* d, int w, int h);
+void displayContentScale(Display* d, double scale);
 void displayDamage(Display* d);
 
 void displayShowText(Display* d, const char* text);

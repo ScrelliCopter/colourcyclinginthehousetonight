@@ -172,6 +172,7 @@ static int reset(const char* lbmPath)
 		display = displayInit(rend, &lbm, precompSpans.ptr, precompSpans.len);
 	else
 		displayReset(display, &lbm, precompSpans.ptr, precompSpans.len);
+	displayContentScale(display, (double)SDL_GetWindowDisplayScale(win));
 	lbmFree(&lbm);
 	if (!display)
 	{
@@ -318,6 +319,10 @@ static void handleEvent(const SDL_Event* event)
 				++speed;
 			updateInteractiveDisplayText();
 		}
+	}
+	else if (event->type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED)
+	{
+		displayContentScale(display, (double)SDL_GetWindowDisplayScale(win));
 	}
 	else if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
 	{

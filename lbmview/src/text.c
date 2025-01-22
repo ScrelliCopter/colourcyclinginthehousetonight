@@ -1,10 +1,9 @@
+/* text.c - (C) 2023, 2025 a dinosaur (zlib) */
 #include "text.h"
 #include "font.h"
 #include <SDL3/SDL.h>
 #include <string.h>
 
-
-static const int textScale = 3;
 
 void textCreateFontTexture(Font* font)
 {
@@ -37,7 +36,7 @@ void textCreateFontTexture(Font* font)
 	}
 }
 
-static void handleControlChar(int c, int xorig, int* restrict x, int* restrict y)
+static void handleControlChar(int c, int xorig, int textScale, int* restrict x, int* restrict y)
 {
 	const int tabSize = FONT_SPACE_WIDTH * textScale * 8;
 	switch (c)
@@ -58,7 +57,7 @@ static void handleControlChar(int c, int xorig, int* restrict x, int* restrict y
 	}
 }
 
-void textComputeArea(int* restrict w, int* restrict h, const char* restrict str)
+void textComputeArea(int textScale, int* restrict w, int* restrict h, const char* restrict str)
 {
 	const size_t len = strlen(str);
 
@@ -69,7 +68,7 @@ void textComputeArea(int* restrict w, int* restrict h, const char* restrict str)
 		if (fontGetGlyph(c, &offset, &size))
 			x += (size + fontGetKerning((unsigned char)str[i + 1], c)) * textScale;
 		else
-			handleControlChar(c, 0, &x, &y);
+			handleControlChar(c, 0, textScale, &x, &y);
 	}
 
 	if (x > ww)
@@ -78,7 +77,7 @@ void textComputeArea(int* restrict w, int* restrict h, const char* restrict str)
 	(*h) = y + 8 * textScale;
 }
 
-void textDraw(const Font* font, int x, int y, const char* restrict str)
+void textDraw(const Font* font, int textScale, int x, int y, const char* restrict str)
 {
 	if (!font || !font->r || !font->tex || !str)
 		return;
@@ -97,6 +96,6 @@ void textDraw(const Font* font, int x, int y, const char* restrict str)
 			SDL_RenderTexture(font->r, font->tex, &src, &dst);
 			x += (size + fontGetKerning((unsigned char)str[i + 1], c)) * textScale;
 		}
-		else handleControlChar(c, xorig, &x, &y);
+		else handleControlChar(c, xorig, textScale, &x, &y);
 	}
 }

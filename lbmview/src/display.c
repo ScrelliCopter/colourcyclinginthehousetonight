@@ -1,4 +1,4 @@
-/* display.c - (C) 2023 a dinosaur (zlib) */
+/* display.c - (C) 2023-2025 a dinosaur (zlib) */
 #include "display.h"
 #include "surface.h"
 #include "text.h"
@@ -24,6 +24,7 @@ struct Display
 
 	double srcAspect;
 	int scrW, scrH;
+	int textScale;
 
 	bool rangeTrigger[LBM_MAX_CRNG];
 	float cycleTimers[LBM_MAX_CRNG];
@@ -65,6 +66,7 @@ Display* displayInit(SDL_Renderer* renderer, const Lbm* lbm, const void* precomp
 		.surfRect = { 0.f, 0.f, 0.f, 0.f },
 		.srcAspect = 0.0,
 		.scrW = 0, .scrH = 0,
+		.textScale = 1,  // Set by displayContentScale()
 
 		.cycleMethod = DISPLAY_CYCLEMETHOD_SRGB,
 		.spanView = false,
@@ -395,11 +397,12 @@ void displayRepaint(Display* d)
 		SDL_SetRenderDrawColor(d->rend, 0x00, 0x00, 0x00, alpha >> 1);
 		SDL_SetTextureAlphaMod(d->font.tex, alpha);
 		int w, h;
-		textComputeArea(&w, &h, d->text);
-		h += 16;
+		textComputeArea(d->textScale, &w, &h, d->text);
+		const int margin = 1 + 5 * d->textScale;
+		h += margin;
 		SDL_RenderFillRect(d->rend, &(SDL_FRect){0.f, (float)(d->scrH - h), (float)d->scrW, (float)h});
 		SDL_SetRenderDrawBlendMode(d->rend, SDL_BLENDMODE_NONE);
-		textDraw(&d->font, 16, d->scrH - h + 8, d->text);
+		textDraw(&d->font, d->textScale, margin, d->scrH - h + (margin >> 1), d->text);
 	}
 
 	SDL_RenderPresent(d->rend);
@@ -461,6 +464,13 @@ void displayResize(Display* d, int w, int h)
 	d->repaint = true;
 
 	d->scrW = w, d->scrH = h;
+}
+
+void displayContentScale(Display* d, double scale)
+{
+	if (!d)
+		return;
+	d->textScale = MAX(1, 1 + (int)(scale + 0.5));
 }
 
 void displayDamage(Display* d)

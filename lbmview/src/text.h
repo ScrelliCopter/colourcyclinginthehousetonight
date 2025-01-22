@@ -14,7 +14,7 @@ typedef struct Font
 } Font;
 
 void textCreateFontTexture(Font* font);
-void textComputeArea(int* restrict w, int* restrict h, const char* restrict str);
-void textDraw(const Font* font, int x, int y, const char* restrict str);
+void textComputeArea(int textScale, int* restrict w, int* restrict h, const char* restrict str);
+void textDraw(const Font* font, int textScale, int x, int y, const char* restrict str);
 
 #endif//TEXT_H
