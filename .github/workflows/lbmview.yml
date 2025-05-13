@@ -40,7 +40,7 @@ jobs:
     - name: Setup SDL (MacOS)
       if: ${{startsWith(matrix.cfg.os, 'macos')}}
       run: |
-        curl -Lo SDL.dmg https://github.com/libsdl-org/SDL/releases/download/prerelease-3.1.10/SDL3-3.1.10.dmg
+        curl -Lo SDL.dmg https://github.com/libsdl-org/SDL/releases/download/release-3.2.12/SDL3-3.2.12.dmg
         hdiutil attach SDL.dmg
     - name: Setup SDL (Windows & Linux)
       if: ${{startsWith(matrix.cfg.os, 'windows') || startsWith(matrix.cfg.os, 'ubuntu')}}
