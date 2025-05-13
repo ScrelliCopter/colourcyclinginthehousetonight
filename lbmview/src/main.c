@@ -246,7 +246,7 @@ static void setupDisplayText(const char* restrict lbmPath, const char* restrict 
 
 	if (displayTextSplit >= 0 && (!STR_EMPTY(audioPath) || !BUF_EMPTY(oggv)))
 		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
-			"  Volume: %.1f%%\n", (float)volume * (100.0f / 255.0f));
+			"  Volume: %.1f%%\n", (double)volume * (100.0 / 255.0));
 	updateInteractiveDisplayText();
 }
 
