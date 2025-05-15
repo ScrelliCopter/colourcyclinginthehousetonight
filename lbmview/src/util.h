@@ -137,7 +137,7 @@ typedef struct { void* ptr; size_t len; } SizedBuf;
 #define BUF_ALLOC(L) BUF_SIZED(malloc(L), (L))
 #define BUF_CLEAR() CONSTASGN_CAST(SizedBuf){ NULL, 0U }
 #define BUF_EMPTY(B) (!(B).ptr)
-#define BUF_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedBuf)BUF_CLEAR())
+#define BUF_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedBuf){ NULL, 0U })
 
 typedef struct { char* ptr; size_t len; } SizedStr;
 
@@ -145,7 +145,7 @@ typedef struct { char* ptr; size_t len; } SizedStr;
 #define STR_ALLOC(L) STR_SIZED(malloc((L) + 1), (L))
 #define STR_CLEAR() CONSTASGN_CAST(SizedStr){ NULL, 0U }
 #define STR_EMPTY(B) (!(B).ptr || !(B).len)
-#define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedStr)STR_CLEAR())
+#define STR_FREE(B) ((B) = !(B).ptr ? free((B).ptr), (B) : (SizedStr){ NULL, 0U })
 
 // Disable warnings
 
