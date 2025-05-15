@@ -349,13 +349,17 @@ int audioPlayMemory(const void* oggv, int oggvLen, uint8_t volume)
 
 void audioClose(void)
 {
-	SDL_PauseAudioStreamDevice(stream);
+	if (stream)
+		SDL_PauseAudioStreamDevice(stream);
 	BUF_FREE(decodeBuf);
 	SDL_DestroyAudioStream(stream);
 	stream = NULL;
 #ifdef USE_VORBISFILE
-	ov_clear(&ov);
-	ovOpen = false;
+	if (ovOpen)
+	{
+		ov_clear(&ov);
+		ovOpen = false;
+	}
 #else
 	if (vorbin)
 	{

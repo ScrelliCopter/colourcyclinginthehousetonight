@@ -3,6 +3,7 @@
 #include "audio.h"
 #include "util.h"
 #include <SDL3/SDL.h>
+#define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -99,7 +100,6 @@ static Display* display = NULL;
 static char displayText[2048];
 static int  displayTextSplit;
 
-static bool quit     = false;
 static bool realtime = false;
 
 #define TIMESCALE_NUM 15
@@ -175,10 +175,7 @@ static int reset(const char* lbmPath)
 	displayContentScale(display, (double)SDL_GetWindowDisplayScale(win));
 	lbmFree(&lbm);
 	if (!display)
-	{
-		quit = true;
 		return -1;
-	}
 	BUF_FREE(precompSpans);
 
 	setupDisplayText(lbmPath, wintitle);
@@ -217,7 +214,7 @@ static void updateInteractiveDisplayText(void)
 	}
 
 	const char* yes = "YES", * no = "NO";
-	snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+	snprintf(&displayText[displayTextSplit], sizeof(displayText) - (size_t)displayTextSplit,
 		"\nShow palette (P): %s\n"
 		"Show spans (S): %s\n"
 		"Cycle method (M): %s\n"
@@ -238,14 +235,14 @@ static void setupDisplayText(const char* restrict lbmPath, const char* restrict 
 		return;
 
 	if (!BUF_EMPTY(oggv) || STR_EMPTY(audioPath))
-		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - (size_t)displayTextSplit,
 			"Audio: %s", BUF_EMPTY(oggv) ? "NONE" : "EMBEDDED (OGGV)");
 	else
-		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - (size_t)displayTextSplit,
 			"Audio: EXTERNAL (%s)", audioPath.ptr);
 
 	if (displayTextSplit >= 0 && (!STR_EMPTY(audioPath) || !BUF_EMPTY(oggv)))
-		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - displayTextSplit,
+		displayTextSplit += snprintf(&displayText[displayTextSplit], sizeof(displayText) - (size_t)displayTextSplit,
 			"  Volume: %.1f%%\n", (double)volume * (100.0 / 255.0));
 	updateInteractiveDisplayText();
 }
@@ -268,8 +265,10 @@ void playAudio(void)
 	STR_FREE(audioPath);
 }
 
-static void deinit(void)
+void SDLCALL SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+	(void)appstate; (void)result;
+
 	audioClose();
 	STR_FREE(audioPath);
 	BUF_FREE(oggv);
@@ -281,11 +280,14 @@ static void deinit(void)
 	SDL_Quit();
 }
 
-static void handleEvent(const SDL_Event* event)
+SDL_AppResult SDLCALL SDL_AppEvent(void* appstate, SDL_Event* event)
 {
+	(void)appstate;
+
 	if (event->type == SDL_EVENT_QUIT)
-		quit = true;
-	else if (event->type == SDL_EVENT_KEY_DOWN)
+		return SDL_APP_SUCCESS;
+
+	if (event->type == SDL_EVENT_KEY_DOWN)
 	{
 #ifdef EMSCRIPTEN
 		// SDL bug: Workaround every keypress being immediately retriggered on the web for some reason
@@ -335,40 +337,39 @@ static void handleEvent(const SDL_Event* event)
 	}
 	else if (event->type == SDL_EVENT_DROP_FILE)
 	{
-		reset(event->drop.data);
+		if (reset(event->drop.data))
+			return SDL_APP_FAILURE;
 	}
+	return SDL_APP_CONTINUE;
 }
 
 
 static Uint64 tick;
 
-static void mainLoop(void)
+#define USE_PERFORMANCE_COUNTER 0
+
+SDL_AppResult SDLCALL SDL_AppIterate(void* appstate)
 {
+	(void)appstate;
+
 	bool realtimeNew = !BUF_EMPTY(precompSpans) || displayHasAnimation(display) || displayIsTextShown(display);
 	if (!realtime == realtimeNew)
-#if 0
+	{
+		realtime = realtimeNew;
+#ifndef EMSCRIPTEN
+		SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, realtime ? NULL : "waitevent");
+#endif
+#if USE_PERFORMANCE_COUNTER
 		tick = SDL_GetPerformanceCounter();
 #else
 		tick = SDL_GetTicksNS();
 #endif
-	realtime = realtimeNew;
-
-	SDL_Event event;
-#ifndef EMSCRIPTEN
-	if (realtime)
-		while (SDL_PollEvent(&event) > 0)
-			handleEvent(&event);
-	else if (SDL_WaitEvent(&event))
-		handleEvent(&event);
-#else
-	while (SDL_PollEvent(&event) > 0)
-		handleEvent(&event);
-#endif
+	}
 
 	if (realtime)
 	{
 		const Uint64 lastTick = tick;
-#if 0
+#if USE_PERFORMANCE_COUNTER
 		const double divisor = (double)SDL_GetPerformanceFrequency();
 		tick = SDL_GetPerformanceCounter();
 #else
@@ -382,6 +383,8 @@ static void mainLoop(void)
 	}
 
 	displayRepaint(display);
+
+	return SDL_APP_CONTINUE;
 }
 
 #ifndef EMSCRIPTEN
@@ -397,8 +400,10 @@ static void openFileDialogue(void* user, const char* const* list, int filter)
 }
 #endif
 
-int main(int argc, char* argv[])
+SDL_AppResult SDLCALL SDL_AppInit(void** appstate, int argc, char* argv[])
 {
+	(void)appstate;
+
 #ifndef EMSCRIPTEN
 	// Open file picker when no arguments are provided
 	if (argc == 1)
@@ -408,9 +413,9 @@ int main(int argc, char* argv[])
 
 		SDL_Semaphore* sem = SDL_CreateSemaphore(0);
 		if (!sem)
-			return 1;
+			return SDL_APP_FAILURE;
 		if (!SDL_Init(SDL_INIT_VIDEO))  //SDL bug: misbehaves with just INIT_EVENTS, needs INIT_VIDEO
-			return 1;
+			return SDL_APP_FAILURE;
 
 		// Prompt the user to select an LBM
 		OpenFileDialogueState state = { .sem = sem, .filepath = NULL };
@@ -429,41 +434,30 @@ int main(int argc, char* argv[])
 			int err = reset(state.filepath);
 			SDL_free(state.filepath);
 			if (err)
-			{
-				deinit();
-				return 1;
-			}
+				return SDL_APP_FAILURE;
 			goto SkipCommandLineInit;
 		}
 	}
 #endif
 
 	if (argc != 2)
-		return 1;
+		return SDL_APP_FAILURE;
 
+#ifndef EMSCRIPTEN
+	SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, "waitevent");
+#endif
 	if (!SDL_Init(SDL_INIT_VIDEO))
-		return 1;
+		return SDL_APP_FAILURE;
 
 	if (reset(argv[1]))
-	{
-		deinit();
-		return 1;
-	}
+		return SDL_APP_FAILURE;
 
 SkipCommandLineInit:
-#if 0
+#if USE_PERFORMANCE_COUNTER
 	tick = SDL_GetPerformanceCounter();
 #else
 	tick = SDL_GetTicksNS();
 #endif
 
-#ifdef EMSCRIPTEN
-	emscripten_set_main_loop(mainLoop, 0, 1);
-#else
-	while (!quit)
-		mainLoop();
-#endif
-
-	deinit();
-	return 0;
+	return SDL_APP_CONTINUE;
 }
