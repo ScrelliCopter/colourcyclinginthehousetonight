@@ -44,11 +44,11 @@ def mergekern(unopt: Kerning) -> Kerning:
 	return kernings
 
 
-def loadspec(file: TextIO, dir: Path) -> Spec:
+def loadspec(file: TextIO, srcdir: Path) -> Spec:
 	xroot = ET.parse(file).getroot()
 	imgpath = Path(xroot.get("image"))
 	if not imgpath.is_absolute():
-		imgpath = dir.joinpath(imgpath)
+		imgpath = srcdir.joinpath(imgpath)
 	image = Image.open(imgpath).convert("RGB")
 	spacewidth = getint(xroot, "space")
 	if spacewidth is None:
@@ -129,13 +129,13 @@ def writekern(file: TextIO, spec: Spec, label: str = "GetKern"):
 
 		return " || ".join(conditions(v, p))
 
-	def body(stuff: dict[str | None, int]):
+	def body(stuff: dict[str | None, int]) -> Iterable[str]:
 		default = stuff.get(None)
 		if default is not None and len(stuff) < 2:
 			yield f" {{ return {default}; }}"
 		else:
 			yield "\n\t{"
-			for i, p in enumerate(filter(lambda i: i[0], stuff.items())):
+			for i, p in enumerate(filter(lambda it: it[0], stuff.items())):
 				if i == 0:
 					yield "\n\t\tif"
 					if len(stuff) > 1:
