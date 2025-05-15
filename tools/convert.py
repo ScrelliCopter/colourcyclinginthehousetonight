@@ -89,12 +89,12 @@ def makeHeader(size: (int, int)) -> bytes:
 	return makeChunk(IffChunk.BITMAP_HEADER, bmhd)
 
 
-def makeColourRange(rate: int, flags: RangeFlag, range: (int, int)) -> bytes:
+def makeColourRange(rate: int, flags: RangeFlag, crange: (int, int)) -> bytes:
 	crng = struct.pack(">hhhBB",
 		0,            # BEINT16 = pad1 (reserved)
 		rate,         # BEINT16 = rate
 		flags.value,  # BEINT16 = flags
-		*range)       # UINT8, UINT8 = low, high
+		*crange)       # UINT8, UINT8 = low, high
 	return makeChunk(IffChunk.EXT_CLRRANGE, crng)
 
 
@@ -122,8 +122,8 @@ def byteRun1Compress(data: bytes) -> bytes:
 			runLen = nextUniq - i
 			# Only encode runs of 2 bytes if preceeded by a RLE packet (runs of 3 or more are always encoded as RLE)
 			# Efficiency could be better if this detected a copy packet after runs of 2 and folded the pair into the latter
-			if runLen > (2 if len(literal) else 1):
-				if len(literal):
+			if runLen > (2 if literal else 1):
+				if literal:
 					# Commit current literal (copy) buffer
 					yield rleLiteral(literal)
 					literal.clear()
@@ -135,7 +135,7 @@ def byteRun1Compress(data: bytes) -> bytes:
 				if len(literal) == 128:
 					yield rleLiteral(literal)
 					literal.clear()
-		if len(literal):
+		if literal:
 			yield rleLiteral(literal)
 
 	return b"".join(rle())
@@ -242,14 +242,14 @@ def convert(inPath: Path, outDir: Path, title: str|None=None, audio: str|None=No
 	s = quote_properties.sub("\"\\1\":", s)
 	j = json.loads(s)
 
-	def torange(range) -> CycleRange:
-		rate = range["rate"]
+	def torange(crange) -> CycleRange:
+		rate = crange["rate"]
 		flags = RangeFlag.NONE
 		if rate != 0:
 			flags |= RangeFlag.ACTIVE
-		if range["reverse"] == 2:
+		if crange["reverse"] == 2:
 			flags |= RangeFlag.REVERSE
-		return CycleRange(rate, flags, range["low"], range["high"])
+		return CycleRange(rate, flags, crange["low"], crange["high"])
 
 	with outDir.joinpath(j["filename"]).open("wb") as out:
 		pix = bytes(j["pixels"])
@@ -282,7 +282,7 @@ def main():
 			print(js)
 			convert(js, outDir)
 	else:
-		exit("Incorrect argument number")
+		sys.exit("Incorrect argument number")
 
 
 if __name__ == "__main__":

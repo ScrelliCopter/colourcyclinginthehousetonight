@@ -2,6 +2,7 @@
 
 # scrape.py - (C) 2023 a dinosaur (zlib)
 
+import sys
 import json
 import re
 from pathlib import Path
@@ -10,6 +11,7 @@ from urllib.request import urlopen, Request as URLRequest
 from urllib.error import URLError
 from typing import TextIO
 from argparse import ArgumentParser
+from dataclasses import dataclass
 
 import convert
 
@@ -22,8 +24,8 @@ def fetch(url: str, name: str|None = None) -> bool:
 	if path.exists():
 		return True
 	try:
-		r = urlopen(URLRequest(url, data=None))
-		p = r.read()
+		with urlopen(URLRequest(url, data=None)) as r:
+			p = r.read()
 		if p.startswith(b"File does not exist"):
 			raise URLError("File does not exist")
 		with path.open("wb") as f:
@@ -35,15 +37,13 @@ def fetch(url: str, name: str|None = None) -> bool:
 		return False
 
 
+@dataclass(eq=True, frozen=True)
 class Scene:
-	def __init__(self,
-			title: str|None=None, sound: str|None=None, maxVolume: float|None=None,
-			month: str|None=None, script: str|None=None):
-		self.title = title
-		self.sound = sound
-		self.maxVolume = maxVolume
-		self.month = month
-		self.script = script
+	title: str|None=None
+	sound: str|None=None
+	maxVolume: float|None=None
+	month: str|None=None
+	script: str|None=None
 
 
 def loadScenes(f: TextIO) -> dict[str, Scene]:
@@ -71,7 +71,7 @@ def loadScenes(f: TextIO) -> dict[str, Scene]:
 				yield name, Scene(
 					obj.get("title"), obj.get("sound"), obj.get("maxVolume"),
 					obj.get("month"), obj.get("scpt"))
-	return {name: scene for name, scene in parseScenes()}
+	return dict(parseScenes())
 
 
 def parseUrl(base: str|None, resource: str):
@@ -88,7 +88,7 @@ def parseUrl(base: str|None, resource: str):
 def scrape(outDir: Path, scenesJsLoc: str, imgLoc: str, audioLoc: str | None, extraImg: list[str] | None = None):
 	scenesJs = outDir.joinpath("scenes.js")
 	if not fetch(scenesJsLoc, str(scenesJs)):
-		exit(1)
+		sys.exit(1)
 	with scenesJs.open("r") as f:
 		scenes = loadScenes(f)
 
@@ -103,13 +103,13 @@ def scrape(outDir: Path, scenesJsLoc: str, imgLoc: str, audioLoc: str | None, ex
 	sounds = {}
 	for i in scenes.items():
 		if i[1].month is not None:
-			resouce = f"scene.php?file={i[0]}&month={i[1].month}&script={i[1].script}&callback=CanvasCycle.initScene"
-			urlBase = scenesJsLoc.removesuffix("scenes.js") + resouce
+			resource = f"scene.php?file={i[0]}&month={i[1].month}&script={i[1].script}&callback=CanvasCycle.initScene"
+			urlBase = scenesJsLoc.removesuffix("scenes.js") + resource
 			jsDir.mkdir(exist_ok=True)
 			fetch(urlBase, str(jsDir.joinpath(f"{i[0]}.LBM.js")))
 		else:
-			resouce = f"{i[0]}.LBM.json"
-			urlBase = parseUrl(imgLoc, resouce)
+			resource = f"{i[0]}.LBM.json"
+			urlBase = parseUrl(imgLoc, resource)
 			jsonDir.mkdir(exist_ok=True)
 			fetch(urlBase, str(jsonDir.joinpath(f"{i[0]}.LBM.json")))
 		if i[1] not in sounds and i[1].sound is not None:
@@ -119,7 +119,7 @@ def scrape(outDir: Path, scenesJsLoc: str, imgLoc: str, audioLoc: str | None, ex
 	if audioLoc is not None:
 		oggDir = outDir.joinpath("audio")
 		oggDir.mkdir(exist_ok=True)
-		for i in sounds.keys():
+		for i in sounds:
 			fetch(parseUrl(audioLoc, f"{i}.ogg"), str(oggDir.joinpath(f"{i}.ogg")))
 
 	# convert LBM.js back into actual LBM files
