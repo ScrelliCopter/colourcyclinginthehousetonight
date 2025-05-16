@@ -3,9 +3,8 @@
 # vwfnt2c.py - (C) 2023, 2025 a dinosaur (zlib)
 
 from pathlib import Path
-from typing import TextIO, Iterable, Tuple
+from typing import TextIO, Iterable, Tuple, NamedTuple
 import xml.etree.ElementTree as ET
-from typing import NamedTuple
 from PIL import Image
 
 
@@ -25,13 +24,13 @@ def getint(e: ET.Element, attrib: str, default: None | int = None) -> int | None
 
 
 def mergekern(unopt: Kerning) -> Kerning:
-	merge: Kerning = dict()
+	merge: Kerning = {}
 	for i in unopt.items():
 		if key := next((j[0] for j in merge.items() if j[0] is not None and j[1] == i[1]), None):
 			merge[key + i[0]] = merge.pop(key)
 		else:
 			merge.update({i[0]: i[1]})
-	kernings: Kerning = dict()
+	kernings: Kerning = {}
 	for i in merge.items():
 		if i[0] is None:
 			kernings[None] = i[1]
@@ -55,12 +54,12 @@ def loadspec(file: TextIO, srcdir: Path) -> Spec:
 		raise KeyError("Root tag must specify a 'space' width attribute")
 
 	# Read charmap lines
-	charmap: list[str] = list()
+	charmap: list[str] = []
 	for xline in xroot.find("charmap").iter("line"):
 		charmap.append(xline.text)
 
 	# Read kerning rules
-	kernings: Kerning = dict()
+	kernings: Kerning = {}
 	xkerning = xroot.find("kerning")
 	defaultkern = getint(xkerning, "width", 0)
 	if defaultkern is None:
@@ -70,7 +69,7 @@ def loadspec(file: TextIO, srcdir: Path) -> Spec:
 		glyph = xoverride.get("glyph")
 		if glyph is None:
 			raise KeyError("override must have a 'glyph' attribute")
-		elif len(glyph) != 1:
+		if len(glyph) != 1:
 			raise ValueError("glyph refers to a single character")
 
 		if (width := getint(xoverride, "width")) is not None:
@@ -159,11 +158,14 @@ class Char(NamedTuple):
 
 
 def readchars(spec: Spec) -> list[Char]:
-	getpix = lambda x, y: spec.image.getpixel((x, y))
-	checkred = lambda p: p[0] > 0x7F > p[1] and p[2] < 0x7F
-	checkblack = lambda p: p[0] < 0x7F and p[1] < 0x7F and p[2] < 0x7F
+	def getpix(x: int, y: int) -> Tuple[int, int, int]:
+		return spec.image.getpixel((x, y))
+	def checkred(p: Tuple[int, int, int]) -> bool:
+		return p[0] > 0x7F > p[1] and p[2] < 0x7F
+	def checkblack(p: Tuple[int, int, int]) -> bool:
+		return p[0] < 0x7F and p[1] < 0x7F and p[2] < 0x7F
 
-	chars: list[Char] = list()
+	chars: list[Char] = []
 	for linenum, line in enumerate(spec.charmap):
 		ix = 0
 		for char in line:
@@ -188,13 +190,13 @@ def writecharbits(file: TextIO, chars: list[Char], label: str = "glyphBitmaps"):
 		if i != 0:
 			file.write(",\n")
 		file.write(f"/* '{char.char}' */  ")
-		file.write(", ".join("0x{:02X}".format(byte) for byte in char.bits))
+		file.write(", ".join(f"0x{byte:02X}" for byte in char.bits))
 	file.write("\n};\n")
 
 
 def writeasciiprintablelut(file: TextIO, chars: list[Char], label: str = "asciiLut"):
 	i = 0
-	asciimap: dict[int, tuple[int, int]] = dict()
+	asciimap: dict[int, tuple[int, int]] = {}
 	for char in chars:
 		length = len(char.bits)
 		if (charord := ord(char.char)) < 0x7F:
@@ -224,10 +226,10 @@ def main():
 	coutpath = Path("src/font.c")
 	houtpath = Path("src/font.h")
 
-	with specpath.open("r") as file:
+	with specpath.open("r", encoding="utf-8") as file:
 		spec = loadspec(file, specpath.parent)
 
-	with coutpath.open("w", newline="\n") as cout:
+	with coutpath.open("w", encoding="utf-8", newline="\n") as cout:
 		chars = readchars(spec)
 
 		pyname = Path(__file__).name
@@ -260,7 +262,7 @@ def main():
 			"\treturn 0;\n",
 			"}\n"])
 
-	with houtpath.open("w", newline="\n") as hout:
+	with houtpath.open("w", encoding="utf-8", newline="\n") as hout:
 		guard = pyname.upper().replace(".", "_")
 		guard = f"{guard}_FONT"
 		hout.writelines([
