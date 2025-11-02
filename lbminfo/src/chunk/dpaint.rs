@@ -5,6 +5,7 @@
 use std::{fmt, fs, io};
 use super::{ChunkReaders, IFFChunk, private_chunk};
 use crate::fsext::FileExt;
+use crate::maths::{vec2::Vec2, vec3::{Vec3, Vec3i}, mat3::Mat3};
 
 
 // FIXME: Unknown private Deluxe Paint chunks
@@ -16,18 +17,18 @@ private_chunk!(DeluxePaintPrivateExtended, b"DPXT");
 pub(crate) struct DeluxePaintPerspective
 {
 	pub(crate) rotType: RotationType,   // Rotation type
-	pub(crate) angle: (i16, i16, i16),  // Rotation angles (in degrees)
+	pub(crate) angle: Vec3<i16>,        // Rotation angles (in degrees)
 	pub(crate) perspDepth: i32,         // Perspective depth
-	pub(crate) uvCentre: (i16, i16),    // Coords of centre perspective,
+	pub(crate) uvCentre: Vec2<i16>,     // Coords of centre perspective,
 	                                    //  relative to backing bitmap in virtual coords.
 	pub(crate) fixedCoord: i16,         // Which coordinate is fixed
 	pub(crate) angleStep: i16,          // Large angle stepping amount
-	pub(crate) grid: Vec3,              // Grid spacing
-	pub(crate) gridReset: Vec3,         // Where the grid goes on reset
-	pub(crate) gridBrushCentre: Vec3,   // Brush centre when grid was last on, as reference point
-	pub(crate) permBrushCentre: Vec3,   // Brush centre the last time the mouse button was clicked,
+	pub(crate) grid: Vec3i,             // Grid spacing
+	pub(crate) gridReset: Vec3i,        // Where the grid goes on reset
+	pub(crate) gridBrushCentre: Vec3i,  // Brush centre when grid was last on, as reference point
+	pub(crate) permBrushCentre: Vec3i,  // Brush centre the last time the mouse button was clicked,
 	                                    //  a rotation was performed, or motion along "fixed" axis.
-	pub(crate) matrix: Mat3             // Rotation matrix (TODO: column-major or row-major??)
+	pub(crate) matrix: Mat3<i32>        // Rotation matrix (TODO: column-major or row-major??)
 }
 
 impl IFFChunk for DeluxePaintPerspective
@@ -36,19 +37,19 @@ impl IFFChunk for DeluxePaintPerspective
 	{
 		Ok((ChunkReaders::DeluxePaintPerspective(Self {
 			rotType:         RotationType(file.read_i16be()?),
-			angle:           (file.read_i16be()?, file.read_i16be()?, file.read_i16be()?),
+			angle:           Vec3::new(file.read_i16be()?, file.read_i16be()?, file.read_i16be()?),
 			perspDepth:      file.read_i32be()?,
-			uvCentre:        (file.read_i16be()?, file.read_i16be()?),
+			uvCentre:        Vec2::new(file.read_i16be()?, file.read_i16be()?),
 			fixedCoord:      file.read_i16be()?,
 			angleStep:       file.read_i16be()?,
-			grid:            (file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
-			gridReset:       (file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
-			gridBrushCentre: (file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
-			permBrushCentre: (file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
-			matrix:
-				(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
-				 file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
-				 file.read_i32be()?, file.read_i32be()?, file.read_i32be()?)
+			grid:            Vec3::new(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
+			gridReset:       Vec3::new(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
+			gridBrushCentre: Vec3::new(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
+			permBrushCentre: Vec3::new(file.read_i32be()?, file.read_i32be()?, file.read_i32be()?),
+			matrix: Mat3(
+				file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
+				file.read_i32be()?, file.read_i32be()?, file.read_i32be()?,
+				file.read_i32be()?, file.read_i32be()?, file.read_i32be()?)
 		}), Self::SIZE as usize))
 	}
 
@@ -80,13 +81,6 @@ impl fmt::Display for RotationType
 		})
 	}
 }
-
-
-type Vec3 = (i32, i32, i32);
-type Mat3 = (
-	i32, i32, i32,
-	i32, i32, i32,
-	i32, i32, i32);
 
 
 // Deluxe Paint II (MS-DOS) embedded thumbnail chunk

@@ -200,18 +200,18 @@ impl fmt::Display for LBMFullInfo<'_>
 		{
 			writeln!(f, "DeluxePaint DOS perspective settings (DPPV):")?;
 			writeln!(f, "  rotation type:       {}", dppv.rotType)?;
-			writeln!(f, "  rotation angles:     {}, {}, {}", dppv.angle.0, dppv.angle.1, dppv.angle.2)?;
+			writeln!(f, "  rotation angles:     {}, {}, {}", dppv.angle.x, dppv.angle.y, dppv.angle.z)?;
 			writeln!(f, "  perspective depth:   {}", dppv.perspDepth)?;
-			writeln!(f, "  perspective centre:  u:{}, v:{}", dppv.uvCentre.0, dppv.uvCentre.1)?;
+			writeln!(f, "  perspective centre:  u:{}, v:{}", dppv.uvCentre.x, dppv.uvCentre.y)?;
 			writeln!(f, "  fixed coordinate:    {}", dppv.fixedCoord)?;
 			writeln!(f, "  large angle step:    {}", dppv.angleStep)?;
-			writeln!(f, "  grid spacing:        x:{}, y:{}, z:{}", dppv.grid.0, dppv.grid.1, dppv.grid.2)?;
+			writeln!(f, "  grid spacing:        x:{}, y:{}, z:{}", dppv.grid.x, dppv.grid.y, dppv.grid.z)?;
 			writeln!(f, "  grid reset position: x:{}, y:{}, z:{}",
-				dppv.gridReset.0, dppv.gridReset.1, dppv.gridReset.2)?;
+				dppv.gridReset.x, dppv.gridReset.y, dppv.gridReset.z)?;
 			writeln!(f, "  grid brush centre:   x:{}, y:{}, z:{}",
-				dppv.gridBrushCentre.0, dppv.gridBrushCentre.1, dppv.gridBrushCentre.2)?;
+				dppv.gridBrushCentre.x, dppv.gridBrushCentre.y, dppv.gridBrushCentre.z)?;
 			writeln!(f, "  last brush centre:   x:{}, y:{}, z:{}",
-				dppv.permBrushCentre.0, dppv.permBrushCentre.1, dppv.permBrushCentre.2)?;
+				dppv.permBrushCentre.x, dppv.permBrushCentre.y, dppv.permBrushCentre.z)?;
 			writeln!(f, "  rotation matrix:\n    {} {} {}\n    {} {} {}\n    {} {} {}",
 				dppv.matrix.0, dppv.matrix.1, dppv.matrix.2,
 				dppv.matrix.3, dppv.matrix.4, dppv.matrix.5,

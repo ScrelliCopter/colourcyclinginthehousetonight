@@ -12,32 +12,63 @@ mod info;
 mod check;
 mod optionset;
 
-use std::{env, fs, io};
-use std::path::Path;
-use std::process::exit;
+mod maths
+{
+	pub(crate) mod vec2;
+	pub(crate) mod vec3;
+	pub(crate) mod mat3;
+}
+
 use crate::info::LBMInfo;
 use crate::lbm::LBM;
 
+use jaarg::{Opt, Opts, ParseControl, ParseResult};
+use std::io::Error;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+use std::fs;
 
-fn parseArgs() -> Result<(bool, String), String>
+enum ParseArgsResult
 {
-	let args: Vec<String> = env::args().collect();
-	match args.len()
+	Continue(bool, PathBuf),
+	Exit(ExitCode),
+}
+
+fn parseArgs() -> ParseArgsResult
+{
+	let mut path = PathBuf::new();
+	let mut scan = false;
+
+	enum Arg { Help, Path, Scan }
+	const OPTIONS: Opts<Arg> = Opts::new(
+	&[
+		Opt::help_flag(Arg::Help, &["-h", "--help"]),
+		Opt::positional(Arg::Path, "path").required()
+			.help_text("Path to an ILBM/PBM, or a directory path (when scanning)"),
+		Opt::flag(Arg::Scan, &["-s", "--scan"])
+			.help_text("Recursively scan path as a directory"),
+	]);
+	match OPTIONS.parse_easy(|program_name, id, _opt, _name, arg|
 	{
-		2 => { Ok((false, args[1].trim().parse().unwrap())) }
-		3 =>
+		match id
 		{
-			let arg1 = args[1].trim();
-			if !arg1.starts_with('-') { return Err(String::from("Too many arguments")) }
-			if !["-s", "--scan"].contains(&arg1) { return Err(format!("Unrecognised option `{}`", arg1)) }
-			Ok((true, args[2].trim().parse().unwrap()))
+			Arg::Help =>
+			{
+				OPTIONS.print_full_help(program_name);
+				return Ok(ParseControl::Quit);
+			}
+			Arg::Path => { path.push(arg); }
+			Arg::Scan => { scan = true; }
 		}
-		0..=1 => { Err(String::from("Not enough arguments")) }
-		_ => { Err(String::from("Too many arguments")) }
+		Ok(ParseControl::Continue)
+	}) {
+		ParseResult::ContinueSuccess => ParseArgsResult::Continue(scan, path),
+		ParseResult::ExitSuccess => ParseArgsResult::Exit(ExitCode::SUCCESS),
+		ParseResult::ExitError => ParseArgsResult::Exit(ExitCode::FAILURE),
 	}
 }
 
-fn walk(dir: &Path, cb: &dyn Fn(&str, &str, &Path)) -> Result<(), io::Error>
+fn walk(dir: &Path, cb: &dyn Fn(&str, &str, &Path)) -> Result<(), Error>
 {
 	for node in fs::read_dir(dir)?
 	{
@@ -60,53 +91,49 @@ fn walk(dir: &Path, cb: &dyn Fn(&str, &str, &Path)) -> Result<(), io::Error>
 	Ok(())
 }
 
-fn main()
+fn main() -> ExitCode
 {
-	let (scan, pathName) = match parseArgs()
+	let (scan, path) = match parseArgs()
 	{
-		Ok(tuple) => tuple,
-		Err(err) =>
-		{
-			eprintln!("Error: {err}");
-			exit(1);
-		}
+		ParseArgsResult::Continue(scan, path) => (scan, path),
+		ParseArgsResult::Exit(code) => { return code; }
 	};
-
-	let path = Path::new(&pathName);
 	if scan
 	{
 		if !path.is_dir()
 		{
 			eprintln!("Error: \"{}\" is not a directory", path.display());
-			exit(1);
+			return ExitCode::FAILURE;
 		}
-		walk(&path, &|dirname, filename, path|
+		if let Err(err) = walk(&path, &|dirname, filename, path|
 		{
 			match LBM::read(&path)
 			{
 				Ok(lbm) => { println!("{dirname}/{filename}: {}", lbm.shortInfo()) }
 				Err(err) => { println!("{dirname}/{filename}: {:?}", err) }
 			};
-		}).unwrap_or_else(|err|
+		})
 		{
 			eprintln!("Error during scan: {:?}", err);
-			exit(1);
-		})
+			return ExitCode::FAILURE;
+		}
 	}
 	else
 	{
-		match LBM::read(&path)
+		let lbm = match LBM::read(&path)
 		{
-			Ok(lbm) =>
-			{
-				if let Some(name) = path.file_name().unwrap().to_str() { println!("File: {name}"); }
-				print!("{}", lbm.fullInfo());
-			}
+			Ok(lbm) => lbm,
 			Err(err) =>
 			{
 				eprintln!("Error: failed to open file \"{}\": {:?}", path.display(), err);
-				exit(1);
+				return ExitCode::FAILURE;
 			}
+		};
+		if let Some(name) = path.file_name().unwrap().to_str()
+		{
+			println!("File: {name}");
 		}
+		print!("{}", lbm.fullInfo());
 	}
+	ExitCode::SUCCESS
 }
